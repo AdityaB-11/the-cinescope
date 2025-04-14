@@ -5,8 +5,5 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "outputDirectory": ".next",
-  "regions": ["iad1"],
-  "env": {
-    "GEMINI_API_KEY": "@gemini_api_key"
-  }
+  "regions": ["iad1"]
 }
