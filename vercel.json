@@ -7,9 +7,6 @@
   "outputDirectory": ".next",
   "regions": ["iad1"],
   "env": {
-    "GEMINI_API_KEY": "AIzaSyDrJ4ngX-1YsXeEduqmrYIN8Us8QTnOvCA"
-  },
-  "routes": [
-    { "src": "/(.*)", "dest": "/" }
-  ]
-} 
+    "GEMINI_API_KEY": "@gemini_api_key"
+  }
+}
