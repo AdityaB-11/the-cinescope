@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="750" viewBox="0 0 500 750">
+  <!-- Dark gradient background -->
+  <defs>
+    <linearGradient id="posterGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a1a" />
+      <stop offset="100%" stop-color="#0a0a0a" />
+    </linearGradient>
+    <linearGradient id="neonGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff2d70" />
+      <stop offset="100%" stop-color="#00ff99" />
+    </linearGradient>
+    <!-- Film reel pattern -->
+    <pattern id="filmPattern" patternUnits="userSpaceOnUse" width="50" height="50" patternTransform="rotate(45)">
+      <rect width="50" height="50" fill="#1e1e1e"/>
+      <circle cx="25" cy="25" r="8" fill="#2a2a2a"/>
+      <circle cx="25" cy="25" r="4" fill="#222222"/>
+    </pattern>
+  </defs>
+  
+  <!-- Main background -->
+  <rect width="500" height="750" fill="url(#posterGradient)" />
+  
+  <!-- Decorative film pattern border -->
+  <rect x="20" y="20" width="460" height="710" fill="none" stroke="url(#neonGradient)" stroke-width="2" rx="10" ry="10" />
+  <rect x="40" y="40" width="420" height="670" fill="url(#filmPattern)" opacity="0.2" />
+  
+  <!-- Movie icon -->
+  <g transform="translate(250, 300) scale(3)">
+    <circle cx="0" cy="0" r="20" fill="#333333" />
+    <circle cx="0" cy="0" r="18" fill="#1e1e1e" stroke="#444444" stroke-width="1" />
+    <path d="M-8,-12 L8,-12 L8,12 L-8,12 Z" fill="#1e1e1e" stroke="#444444" stroke-width="1" />
+    <rect x="-15" y="-12" width="5" height="3" fill="#444444" />
+    <rect x="-15" y="-7" width="5" height="3" fill="#444444" />
+    <rect x="-15" y="-2" width="5" height="3" fill="#444444" />
+    <rect x="-15" y="3" width="5" height="3" fill="#444444" />
+    <rect x="-15" y="8" width="5" height="3" fill="#444444" />
+    <rect x="10" y="-12" width="5" height="3" fill="#444444" />
+    <rect x="10" y="-7" width="5" height="3" fill="#444444" />
+    <rect x="10" y="-2" width="5" height="3" fill="#444444" />
+    <rect x="10" y="3" width="5" height="3" fill="#444444" />
+    <rect x="10" y="8" width="5" height="3" fill="#444444" />
+  </g>
+  
+  <!-- Text -->
+  <text x="250" y="520" font-family="Arial, sans-serif" font-size="36" font-weight="bold" text-anchor="middle" fill="url(#neonGradient)">No Poster</text>
+  <text x="250" y="570" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#777777">Available</text>
+  
+  <!-- Additional decorative elements -->
+  <rect x="100" y="630" width="300" height="2" fill="url(#neonGradient)" rx="1" ry="1" />
+  <rect x="150" y="650" width="200" height="2" fill="#444444" rx="1" ry="1" />
+  <rect x="180" y="670" width="140" height="2" fill="#333333" rx="1" ry="1" />
+</svg> 
