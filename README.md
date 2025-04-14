@@ -1,73 +1,65 @@
-# LRLK - AI-Powered Movie Streaming Platform
+# LRLK Movie App
 
-A sleek, dark-themed movie streaming platform built with Next.js and Tailwind CSS, featuring AI-powered search, movie recommendations by Google's Gemini API, and embedded video player for watching movies.
+A modern movie discovery and streaming application with AI-powered recommendations and flexible playback options.
 
 ## Features
 
-1. **AI-Powered Search**
-   - Real-time movie search with suggestions as you type
-   - Search results show movie title, release year, and overview
-   - Powered by Gemini AI
+- **Search Movies**: Find movies by title with real-time results
+- **Direct Playback**: Enter TMDB or IMDb IDs to play specific movies
+- **Fallback System**: Automatically tries alternative IDs if primary ID fails
+- **AI Recommendations**: Get personalized movie recommendations based on genre or description
+- **Year Filtering**: Filter recommendations by release year range
+- **Multiple Player Options**: Play via TMDB or IMDb IDs with dedicated buttons
 
-2. **Video Player**
-   - Embedded video player using VidFast.pro
-   - Clean, distraction-free viewing experience
+## Technology Stack
 
-3. **Movie Recommender**
-   - Get personalized recommendations based on genre or description
-   - Powered by Google's Gemini API for intelligent suggestions
-   - Each recommendation includes title, release year, overview, and rating
-
-4. **Modern UI**
-   - Sleek dark theme with neon accents
-   - Responsive design for all devices
-   - Clean, intuitive user interface
+- **Next.js 15+**: React framework with App Router
+- **TypeScript**: For type safety and better developer experience
+- **Tailwind CSS**: For responsive, modern UI
+- **Google Gemini AI**: For intelligent movie recommendations and search
+- **VidFast API**: For movie streaming
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18.0.0 or later
+- Node.js 18+ and npm/yarn
 - Google Gemini API key
 
-### Installation
+### Setup
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/AdityaB-11/lrlk.git
-   cd lrlk
+   ```
+   git clone https://github.com/AdityaB-11/lere-lundke-movie-app.git
+   cd lere-lundke-movie-app
    ```
 
 2. Install dependencies:
-   ```bash
+   ```
    npm install
    ```
 
-3. Create a `.env.local` file in the root directory and add your API key:
+3. Create an `.env.local` file with your Gemini API key:
    ```
-   GEMINI_API_KEY=your_gemini_api_key
+   GEMINI_API_KEY=your_api_key_here
    ```
 
-4. Start the development server:
-   ```bash
+4. Run the development server:
+   ```
    npm run dev
    ```
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Technologies Used
+## Deployment
 
-- Next.js 15
-- Tailwind CSS 4
-- TypeScript
-- Google Gemini AI
+This project is configured for easy deployment on Vercel:
 
-## How It Works
+1. Push your code to GitHub
+2. Connect your GitHub repository to Vercel
+3. Set the environment variable for your Gemini API key
+4. Deploy!
 
-1. **Search & Recommendations**: Instead of using traditional movie databases, this application leverages Google's Gemini AI model to search for movies and provide recommendations based on your input.
+## License
 
-2. **Video Integration**: Movies can be watched through VidFast.pro's embedded player, referenced by unique numeric IDs.
-
-## Disclaimer
-
-This project is for educational purposes only. All content streamed through VidFast is assumed to be legally licensed.
+MIT
