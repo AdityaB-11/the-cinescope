@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint --no-error-on-unmatched-pattern"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
