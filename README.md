@@ -1,4 +1,4 @@
-# LRLK Movie App
+# The CineScope
 
 A modern movie discovery and streaming application with AI-powered recommendations and flexible playback options.
 
@@ -30,8 +30,8 @@ A modern movie discovery and streaming application with AI-powered recommendatio
 
 1. Clone the repository:
    ```
-   git clone https://github.com/AdityaB-11/lere-lundke-movie-app.git
-   cd lere-lundke-movie-app
+   git clone https://github.com/AdityaB-11/the-cinescope.git
+   cd the-cinescope
    ```
 
 2. Install dependencies:
