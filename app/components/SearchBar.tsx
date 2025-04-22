@@ -18,6 +18,13 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
   const [mediaId, setMediaId] = useState("");
   const searchRef = useRef<HTMLDivElement>(null);
 
+  // Function to extract the first sentence from a text
+  const getFirstSentence = (text: string): string => {
+    if (!text) return "";
+    const match = text.match(/^(.*?[.!?])\s/);
+    return match ? match[1] : text.substring(0, 80) + (text.length > 80 ? '...' : '');
+  };
+
   useEffect(() => {
     if (showIdSearch) return; // Skip normal search if ID search is active
     
@@ -154,10 +161,13 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
                   ? new Date(media.first_air_date).getFullYear() 
                   : "Unknown");
             
+            const overview = getFirstSentence(media.overview);
+            
             return (
               <div
                 key={`search-${media.id}-${index}`}
-                className="flex items-center p-3 border-b border-gray-800 hover:bg-gray-800 cursor-pointer"
+                className="flex items-center p-3 border-b border-gray-800 hover:bg-gray-800 cursor-pointer transition-colors"
+                onClick={() => handleSelect(media)}
               >
                 <div className="flex-shrink-0 w-12 h-18 relative">
                   <Image
@@ -172,16 +182,15 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
                   <div className="font-medium">{title}</div>
                   <div className="text-sm text-gray-400">
                     {releaseYear}
-                    <span className="ml-2">ID: {media.id}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 line-clamp-1 mt-1">
+                    {overview}
                   </div>
                 </div>
-                <div className="ml-2">
-                  <button
-                    onClick={() => handleSelect(media)}
-                    className="bg-accent text-xs hover:bg-accent/80 text-black py-1 px-2 rounded"
-                  >
-                    Watch
-                  </button>
+                <div className="ml-2 opacity-70 transition-opacity group-hover:opacity-100">
+                  <div className="text-accent text-xs p-1">
+                    Click to Watch
+                  </div>
                 </div>
               </div>
             );
