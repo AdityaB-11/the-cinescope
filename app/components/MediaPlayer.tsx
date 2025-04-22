@@ -30,7 +30,9 @@ export default function MediaPlayer({ media, onClose }: MediaPlayerProps) {
       const fetchImdbId = async () => {
         try {
           // Get the title correctly depending on media type
-          const title = isMovie(media) ? media.title : (isTVShow(media) ? media.name : "");
+          const title = isMovie(media) 
+            ? media.title 
+            : (isTVShow(media) ? (media as any).name : "");
           // Use the searchImdbAndExtractId function to get IMDb ID
           const id = await searchImdbAndExtractId(title);
           if (id) {
@@ -86,7 +88,7 @@ export default function MediaPlayer({ media, onClose }: MediaPlayerProps) {
     if (isMovie(media)) {
       return media.title;
     } else if (isTVShow(media)) {
-      return media.name;
+      return (media as any).name;
     }
     return "Unknown Title";
   };
