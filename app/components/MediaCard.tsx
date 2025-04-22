@@ -58,7 +58,18 @@ export default function MediaCard({ media, onSelect }: MediaCardProps) {
     );
   };
 
-  const handleWatchClick = (idType?: 'tmdb' | 'imdb') => {
+  // Get first sentence of overview
+  const getFirstSentence = (text: string): string => {
+    const match = text.match(/^(.*?[.!?])\s/);
+    return match ? match[1] : text.substring(0, 100) + (text.length > 100 ? '...' : '');
+  };
+
+  const handleCardClick = () => {
+    onSelect(media);
+  };
+
+  const handleIdTypeClick = (e: React.MouseEvent, idType?: 'tmdb' | 'imdb') => {
+    e.stopPropagation(); // Prevent the card click handler from triggering
     onSelect(media, idType);
   };
 
@@ -67,9 +78,13 @@ export default function MediaCard({ media, onSelect }: MediaCardProps) {
   const title = getTitle();
   const releaseYear = getReleaseYear();
   const mediaType = isMovie(media) ? "Movie" : "TV Show";
+  const overviewFirstSentence = getFirstSentence(media.overview);
 
   return (
-    <div className="media-card flex flex-col h-full">
+    <div 
+      className="media-card flex flex-col h-full cursor-pointer transition-transform hover:scale-105 hover:shadow-xl"
+      onClick={handleCardClick}
+    >
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-t-lg">
         <div className="absolute top-2 right-2 z-10 px-2 py-1 text-xs font-medium rounded bg-black/60 text-white">
           {mediaType}
@@ -82,6 +97,9 @@ export default function MediaCard({ media, onSelect }: MediaCardProps) {
           className="object-cover"
           priority
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 hover:opacity-100 transition-opacity flex items-end p-4">
+          <span className="text-white font-medium">{isMovie(media) ? "Click to Watch" : "Click to Play"}</span>
+        </div>
       </div>
       <div className="p-4 flex flex-col flex-grow">
         <h3 className="font-bold text-lg mb-1">{title}</h3>
@@ -95,39 +113,35 @@ export default function MediaCard({ media, onSelect }: MediaCardProps) {
             {media.number_of_episodes && ` • ${media.number_of_episodes} Episodes`}
           </p>
         )}
-        <p className="text-sm text-gray-300 mb-4 line-clamp-3 flex-grow">
-          {media.overview}
+        <p className="text-sm text-gray-300 mb-4 line-clamp-2 flex-grow">
+          {overviewFirstSentence}
         </p>
         
-        <div className="flex flex-col space-y-2">
-          <button
-            onClick={() => handleWatchClick()}
-            className="neon-button py-2 px-4 rounded-full text-sm font-medium w-full"
-          >
-            {isMovie(media) ? "Watch Now" : "Watch Series"}
-          </button>
-          
-          <div className="flex space-x-2 mt-2">
-            {hasTmdbId && (
-              <button
-                onClick={() => handleWatchClick('tmdb')}
-                className="bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded-full text-xs font-medium flex-1"
-                title={`Open using TMDB ID: ${media.tmdb_id}`}
-              >
-                via TMDB
-              </button>
-            )}
-            
-            {hasImdbId && (
-              <button
-                onClick={() => handleWatchClick('imdb')}
-                className="bg-yellow-600 hover:bg-yellow-700 text-white py-1 px-3 rounded-full text-xs font-medium flex-1"
-                title={`Open using IMDb ID: ${media.imdb_id}`}
-              >
-                via IMDb
-              </button>
-            )}
-          </div>
+        <div className="flex space-x-2 mt-auto">
+          {(hasTmdbId || hasImdbId) && (
+            <div className="text-sm text-gray-400 w-full">
+              <p className="text-center mb-1">Alternative Sources:</p>
+              <div className="flex space-x-2">
+                {hasTmdbId && (
+                  <button
+                    onClick={(e) => handleIdTypeClick(e, 'tmdb')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded-full text-xs font-medium flex-1"
+                  >
+                    TMDB
+                  </button>
+                )}
+                
+                {hasImdbId && (
+                  <button
+                    onClick={(e) => handleIdTypeClick(e, 'imdb')}
+                    className="bg-yellow-600 hover:bg-yellow-700 text-white py-1 px-3 rounded-full text-xs font-medium flex-1"
+                  >
+                    IMDb
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
