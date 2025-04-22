@@ -48,9 +48,6 @@ export default function Header({ mode, onModeChange }: HeaderProps) {
         </div>
         
         <nav className="hidden sm:flex items-center space-x-4 ml-4">
-          <Link href="/about" className="text-gray-400 hover:text-accent transition-colors">
-            About
-          </Link>
           <Link href="/contact" className="text-gray-400 hover:text-accent transition-colors">
             Contact
           </Link>

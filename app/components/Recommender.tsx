@@ -1,23 +1,23 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import MovieCard from "./MovieCard";
-import { Movie, GenreOption } from "../types";
+import MediaCard from "./MediaCard";
+import { Media, Movie, isMovie } from "../types";
 import { formatReleaseDate } from '../lib/api';
 import { getMovieRecommendations } from '../lib/gemini';
 
 interface RecommenderProps {
-  onMovieSelect: (movie: Movie) => void;
+  onMovieSelect: (media: Media) => void;
 }
 
 // Year range for selection dropdown
 const YEAR_RANGES = Array.from({ length: 13 }, (_, i) => 1930 + (i * 10));
 
 const Recommender: React.FC<RecommenderProps> = ({ onMovieSelect }) => {
-  const [genres, setGenres] = useState<GenreOption[]>([]);
+  const [genres, setGenres] = useState<{ id: number; name: string }[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<string>("");
   const [description, setDescription] = useState<string>("");
-  const [recommendations, setRecommendations] = useState<Movie[]>([]);
+  const [recommendations, setRecommendations] = useState<Media[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -26,7 +26,7 @@ const Recommender: React.FC<RecommenderProps> = ({ onMovieSelect }) => {
   const [yearRange, setYearRange] = useState<number>(0);
   const [filterByYear, setFilterByYear] = useState<boolean>(false);
 
-  // Keep track of recommended movie titles to avoid duplicates in UI
+  // Keep track of recommended titles to avoid duplicates in UI
   const [recommendedTitles, setRecommendedTitles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -72,30 +72,34 @@ const Recommender: React.FC<RecommenderProps> = ({ onMovieSelect }) => {
       
       const data = await response.json();
       
-      if (!Array.isArray(data.movies) || data.movies.length === 0) {
+      if (!Array.isArray(data.media) || data.media.length === 0) {
         throw new Error("No recommendations found");
       }
       
-      // Filter any movies that match titles we've already seen
-      let newMovies = data.movies.filter((movie: Movie) => 
-        !recommendedTitles.has(movie.title)
-      );
+      // Filter any media that match titles we've already seen
+      let newMedia = data.media.filter((media: Media) => {
+        const title = isMovie(media) ? media.title : (media as any).name;
+        return !recommendedTitles.has(title);
+      });
       
       // Filter by year if enabled
       if (filterByYear && startYear > 0 && yearRange > 0) {
         const endYear = startYear + yearRange;
-        newMovies = newMovies.filter((movie: Movie) => {
-          if (!movie.release_date || typeof movie.release_date !== 'string') {
+        newMedia = newMedia.filter((media: Media) => {
+          // Handle both movies and TV shows
+          const releaseDate = isMovie(media) ? media.release_date : (media as any).first_air_date;
+          
+          if (!releaseDate || typeof releaseDate !== 'string') {
             return false;
           }
-          const releaseYear = parseInt(formatReleaseDate(movie.release_date));
+          const releaseYear = parseInt(formatReleaseDate(releaseDate));
           return !isNaN(releaseYear) && 
                 releaseYear >= startYear && 
                 releaseYear <= endYear;
         });
       }
       
-      if (newMovies.length === 0 && more) {
+      if (newMedia.length === 0 && more) {
         setError("No more unique recommendations available. Try a different genre or description.");
         setIsLoading(false);
         return;
@@ -103,16 +107,17 @@ const Recommender: React.FC<RecommenderProps> = ({ onMovieSelect }) => {
       
       // Update our set of recommended titles
       const updatedTitles = new Set(recommendedTitles);
-      newMovies.forEach((movie: Movie) => {
-        updatedTitles.add(movie.title);
+      newMedia.forEach((media: Media) => {
+        const title = isMovie(media) ? media.title : (media as any).name;
+        updatedTitles.add(title);
       });
       setRecommendedTitles(updatedTitles);
       
       // Update recommendations state
       if (more) {
-        setRecommendations((prev) => [...prev, ...newMovies]);
+        setRecommendations((prev) => [...prev, ...newMedia]);
       } else {
-        setRecommendations(newMovies);
+        setRecommendations(newMedia);
       }
     } catch (error) {
       console.error("Error getting recommendations:", error);
@@ -143,21 +148,24 @@ const Recommender: React.FC<RecommenderProps> = ({ onMovieSelect }) => {
       );
       
       // Filter out any recommendations that have the same ID or title as existing ones
-      let uniqueNewRecommendations = result.filter((newMovie: Movie) => 
-        !recommendations.some(existingMovie => 
-          existingMovie.id === newMovie.id || 
-          existingMovie.title.toLowerCase() === newMovie.title.toLowerCase()
-        )
-      );
+      let uniqueNewRecommendations = result.filter((newMedia: Media) => {
+        const newTitle = isMovie(newMedia) ? newMedia.title : (newMedia as any).name;
+        return !recommendations.some(existingMedia => {
+          const existingTitle = isMovie(existingMedia) ? existingMedia.title : (existingMedia as any).name;
+          return existingMedia.id === newMedia.id || existingTitle.toLowerCase() === newTitle.toLowerCase();
+        });
+      });
       
       // Filter by year if enabled
       if (filterByYear && startYear > 0 && yearRange > 0) {
         const endYear = startYear + yearRange;
-        uniqueNewRecommendations = uniqueNewRecommendations.filter((movie: Movie) => {
-          if (!movie.release_date || typeof movie.release_date !== 'string') {
+        uniqueNewRecommendations = uniqueNewRecommendations.filter((media: Media) => {
+          const releaseDate = isMovie(media) ? media.release_date : (media as any).first_air_date;
+          
+          if (!releaseDate || typeof releaseDate !== 'string') {
             return false;
           }
-          const releaseYear = parseInt(formatReleaseDate(movie.release_date));
+          const releaseYear = parseInt(formatReleaseDate(releaseDate));
           return !isNaN(releaseYear) && 
                 releaseYear >= startYear && 
                 releaseYear <= endYear;
@@ -185,11 +193,13 @@ const Recommender: React.FC<RecommenderProps> = ({ onMovieSelect }) => {
     }
     
     const endYear = startYear + yearRange;
-    return recommendations.filter(movie => {
-      if (!movie.release_date || typeof movie.release_date !== 'string') {
+    return recommendations.filter(media => {
+      const releaseDate = isMovie(media) ? media.release_date : (media as any).first_air_date;
+      
+      if (!releaseDate || typeof releaseDate !== 'string') {
         return false;
       }
-      const releaseYear = parseInt(formatReleaseDate(movie.release_date));
+      const releaseYear = parseInt(formatReleaseDate(releaseDate));
       return !isNaN(releaseYear) && 
             releaseYear >= startYear && 
             releaseYear <= endYear;
@@ -337,11 +347,11 @@ const Recommender: React.FC<RecommenderProps> = ({ onMovieSelect }) => {
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-            {filteredRecommendations.map((movie, index) => (
-              <MovieCard
-                key={`movie-${movie.id}-${index}`}
-                movie={movie}
-                onWatch={onMovieSelect}
+            {filteredRecommendations.map((media, index) => (
+              <MediaCard
+                key={`rec-${media.id}-${index}`}
+                media={media}
+                onSelect={onMovieSelect}
               />
             ))}
           </div>

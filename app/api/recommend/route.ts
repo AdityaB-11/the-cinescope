@@ -4,29 +4,29 @@ import { getMovieRecommendations } from "@/app/lib/gemini";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const { genre, description, count = 3, media_type = 'movie' } = body;
     
-    // Validate request
-    if (!body.genre && !body.description) {
+    if (!genre && !description) {
       return NextResponse.json(
-        { error: "Either genre or description is required" },
+        { error: "Genre or description is required" },
         { status: 400 }
       );
     }
-    
-    const count = body.count || 3;
+
     const recommendations = await getMovieRecommendations(
-      {
-        genre: body.genre,
-        description: body.description,
-      },
+      { 
+        genre, 
+        description,
+        media_type
+      }, 
       count
     );
-    
-    return NextResponse.json({ movies: recommendations });
+
+    return NextResponse.json({ media: recommendations });
   } catch (error) {
-    console.error("Error in recommendations API:", error);
+    console.error("Error in recommend API:", error);
     return NextResponse.json(
-      { error: "Failed to get movie recommendations" },
+      { error: "Failed to get recommendations" },
       { status: 500 }
     );
   }

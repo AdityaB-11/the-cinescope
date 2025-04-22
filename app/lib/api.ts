@@ -70,4 +70,28 @@ export function getFullPosterPath(posterPath: string | null): string {
 
 export function getVidFastEmbedUrl(movieId: number | string): string {
   return `https://vidfast.pro/movie/${movieId}`;
+}
+
+// Function to search for a movie on IMDb and extract the IMDb ID
+export async function searchImdbAndExtractId(title: string): Promise<string | null> {
+  try {
+    // Use our server API endpoint instead of direct fetching
+    const response = await fetch(`/api/imdb?query=${encodeURIComponent(title)}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch IMDb ID');
+    }
+    
+    const data = await response.json();
+    return data.imdbId || null;
+  } catch (error) {
+    console.error('Error searching IMDb:', error);
+    return null;
+  }
+}
+
+// Extract IMDb ID from a URL
+export function extractImdbIdFromUrl(url: string): string | null {
+  // Match IMDb ID pattern (tt followed by numbers)
+  const match = url.match(/tt\d+/);
+  return match ? match[0] : null;
 } 

@@ -4,21 +4,19 @@ import { useState } from "react";
 import Header from "./components/Header";
 import SearchBar from "./components/SearchBar";
 import Recommender from "./components/Recommender";
-import MoviePlayer from "./components/MoviePlayer";
-import { Movie } from "./types";
+import MediaPlayer from "./components/MediaPlayer";
+import { Media } from "./types";
 
 export default function Home() {
   const [mode, setMode] = useState<"search" | "recommend">("search");
-  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
-  const [selectedIdType, setSelectedIdType] = useState<'primary' | 'tmdb' | 'imdb'>('primary');
+  const [selectedMedia, setSelectedMedia] = useState<Media | null>(null);
 
-  const handleMovieSelect = (movie: Movie, idType?: 'tmdb' | 'imdb') => {
-    setSelectedMovie(movie);
-    setSelectedIdType(idType === 'tmdb' ? 'tmdb' : idType === 'imdb' ? 'imdb' : 'primary');
+  const handleMediaSelect = (media: Media) => {
+    setSelectedMedia(media);
   };
 
   const handleClosePlayer = () => {
-    setSelectedMovie(null);
+    setSelectedMedia(null);
   };
 
   return (
@@ -30,16 +28,16 @@ export default function Home() {
           {mode === "search" ? (
             <div className="py-8">
               <h1 className="text-3xl font-bold mb-8 text-center">
-                Find and Watch Your Favorite Movies
+                Find and Watch Movies & TV Shows
               </h1>
-              <SearchBar onMovieSelect={handleMovieSelect} />
+              <SearchBar onMovieSelect={handleMediaSelect} />
             </div>
           ) : (
             <div className="py-8">
               <h1 className="text-3xl font-bold mb-8 text-center">
-                Get Personalized Movie Recommendations
+                Get Personalized Content Recommendations
               </h1>
-              <Recommender onMovieSelect={handleMovieSelect} />
+              <Recommender onMovieSelect={handleMediaSelect} />
             </div>
           )}
         </div>
@@ -51,11 +49,10 @@ export default function Home() {
         </div>
       </footer>
 
-      {selectedMovie && (
-        <MoviePlayer 
-          movie={selectedMovie} 
-          onClose={handleClosePlayer} 
-          initialIdType={selectedIdType}
+      {selectedMedia && (
+        <MediaPlayer 
+          media={selectedMedia} 
+          onClose={handleClosePlayer}
         />
       )}
     </div>

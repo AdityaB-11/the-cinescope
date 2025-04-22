@@ -10,12 +10,12 @@ export async function GET(request: Request) {
   }
   
   try {
-    const results = await searchMovies(query);
-    return NextResponse.json({ results });
+    const media = await searchMovies(query);
+    return NextResponse.json({ results: media });
   } catch (error) {
     console.error("Error in search API:", error);
     return NextResponse.json(
-      { error: "Failed to search movies" },
+      { error: "Failed to search" },
       { status: 500 }
     );
   }

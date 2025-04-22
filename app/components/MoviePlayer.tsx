@@ -15,6 +15,8 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'primary' 
   const [hasError, setHasError] = useState(false);
   const [usingFallbackId, setUsingFallbackId] = useState(false);
   const [currentIdType, setCurrentIdType] = useState<'primary' | 'tmdb' | 'imdb'>(initialIdType);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [alternativeIdType, setAlternativeIdType] = useState<'tmdb' | 'imdb' | null>(null);
   
   // Get the appropriate embed URL based on currentIdType
   const getEmbedUrl = () => {
@@ -47,23 +49,20 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'primary' 
   const handleIframeError = () => {
     setIsLoading(false);
     
-    // Try alternative IDs if available
+    // Instead of automatically switching, check available alternatives and show confirmation dialog
     if (currentIdType === 'primary') {
       if (movie.tmdb_id) {
-        setCurrentIdType('tmdb');
-        setIsLoading(true);
-        setUsingFallbackId(true);
+        setAlternativeIdType('tmdb');
+        setShowConfirmDialog(true);
         return;
       } else if (movie.imdb_id) {
-        setCurrentIdType('imdb');
-        setIsLoading(true);
-        setUsingFallbackId(true);
+        setAlternativeIdType('imdb');
+        setShowConfirmDialog(true);
         return;
       }
     } else if (currentIdType === 'tmdb' && movie.imdb_id) {
-      setCurrentIdType('imdb');
-      setIsLoading(true);
-      setUsingFallbackId(true);
+      setAlternativeIdType('imdb');
+      setShowConfirmDialog(true);
       return;
     }
     
@@ -71,6 +70,23 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'primary' 
     setHasError(true);
   };
 
+  // Add function to handle confirmation
+  const handleConfirmAlternativeId = () => {
+    if (alternativeIdType) {
+      setCurrentIdType(alternativeIdType);
+      setIsLoading(true);
+      setUsingFallbackId(true);
+      setShowConfirmDialog(false);
+    }
+  };
+
+  // Add function to reject alternative ID
+  const handleRejectAlternativeId = () => {
+    setShowConfirmDialog(false);
+    setHasError(true);
+  };
+
+  // Restore the handleRetry function
   const handleRetry = () => {
     setIsLoading(true);
     setHasError(false);
@@ -154,6 +170,35 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'primary' 
                 <p className="text-gray-300">
                   {usingFallbackId ? 'Trying alternative ID...' : 'Loading movie player...'}
                 </p>
+              </div>
+            </div>
+          )}
+          
+          {showConfirmDialog && (
+            <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black/90 text-center p-6">
+              <div className="bg-card-bg p-6 rounded-lg max-w-md">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h3 className="text-xl font-bold mb-2">Playback Issue</h3>
+                <p className="text-gray-300 mb-4">
+                  The movie couldn't be loaded with the current ID. 
+                  Would you like to try the {alternativeIdType === 'tmdb' ? 'TMDB' : 'IMDb'} ID instead?
+                </p>
+                <div className="flex space-x-3 justify-center">
+                  <button 
+                    onClick={handleConfirmAlternativeId}
+                    className="neon-button py-2 px-6 rounded-full text-sm font-medium"
+                  >
+                    Yes, Try Alternative
+                  </button>
+                  <button 
+                    onClick={handleRejectAlternativeId}
+                    className="bg-gray-700 hover:bg-gray-600 text-white py-2 px-6 rounded-full text-sm font-medium"
+                  >
+                    No, Show Error
+                  </button>
+                </div>
               </div>
             </div>
           )}
