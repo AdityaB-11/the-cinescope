@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -115,14 +114,17 @@ export default function Contact() {
     <div className="min-h-screen flex flex-col">
       <header className="w-full py-4 px-4 md:px-6 flex items-center justify-between border-b border-gray-800">
         <Link href="/" className="flex items-center transition-transform duration-300 hover:scale-105">
-          <Image
-            src="/logo.png" 
-            alt="LRLK Logo" 
-            width={150} 
-            height={50}
-            className="h-10 w-auto" 
-            priority
-          />
+          <div className="flex items-center">
+            <div className="relative">
+              <div className="text-3xl font-bold tracking-tighter">
+                <span className="text-white">The</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Cine</span>
+                <span className="text-white">scope</span>
+              </div>
+              <div className="absolute -bottom-1 left-7 w-24 h-0.5 bg-gradient-to-r from-primary to-accent"></div>
+              <div className="absolute -bottom-3 left-20 w-10 h-0.5 bg-accent opacity-60"></div>
+            </div>
+          </div>
         </Link>
         
         <div className="flex items-center space-x-4">
