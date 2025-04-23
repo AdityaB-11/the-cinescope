@@ -69,8 +69,7 @@ export function getFullPosterPath(posterPath: string | null): string {
 }
 
 export function getVidFastEmbedUrl(movieId: number | string): string {
-  // Add parameters to prevent ad redirects
-  return `https://vidfast.pro/movie/${movieId}?autoplay=0&ads=0&fullscreen=0`;
+  return `https://vidfast.pro/movie/${movieId}`;
 }
 
 // Function to search for a movie on IMDb and extract the IMDb ID
