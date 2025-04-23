@@ -1,0 +1,22 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#0a0a1a"/>
+  <path d="M0 0L1600 0L1600 900L0 900L0 0Z" fill="url(#paint0_radial)"/>
+  <path d="M0 0L1600 0L1600 900L0 900L0 0Z" fill="url(#paint1_radial)" fill-opacity="0.4"/>
+  <g opacity="0.6">
+    <path d="M850 450C850 473.87 842.405 497.146 828.461 516.291C814.517 535.436 794.856 549.366 772.028 555.917C749.2 562.467 724.956 561.284 702.749 552.557C680.542 543.83 661.622 528.079 648.795 507.796C635.968 487.513 629.926 463.769 631.542 439.973C633.159 416.177 642.349 393.483 657.702 375.287C673.055 357.091 693.789 344.427 716.846 339.215C739.903 334.002 764.002 336.508 785.355 346.355" stroke="#00b4ff" stroke-width="8"/>
+    <path d="M900 450C900 487.83 887.357 524.339 864.853 553.769C842.349 583.199 811.158 603.856 776.066 612.686C740.975 621.517 703.939 617.98 671.057 602.635C638.174 587.29 611.325 561.092 594.776 528.579C578.227 496.067 573.099 459.196 580.276 423.849C587.452 388.502 606.495 356.8 634.292 334.288C662.088 311.775 696.855 299.923 732.452 300.733C768.05 301.544 802.269 314.971 829.034 338.765" stroke="#7b68ee" stroke-width="8"/>
+  </g>
+  <rect x="392" y="338" width="816" height="224" rx="8" fill="#12121f" fill-opacity="0.5"/>
+  <text x="800" y="430" font-family="Arial" font-size="48" font-weight="bold" fill="white" text-anchor="middle">Cinematic Experience</text>
+  <text x="800" y="490" font-family="Arial" font-size="24" fill="#AAAAAA" text-anchor="middle">Discover amazing movies and get personalized recommendations</text>
+  <defs>
+    <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1470 185) rotate(140.194) scale(1046.73 1861.75)">
+      <stop stop-color="#00b4ff" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#0a0a1a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="paint1_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(130 715) rotate(40.1944) scale(1046.73 1861.75)">
+      <stop stop-color="#7b68ee" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#0a0a1a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg> 

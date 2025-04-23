@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #121212;
+  --background: #0a0a1a;
   --foreground: #f8f8f8;
-  --primary: #ff2d70;
-  --secondary: #7928ca;
-  --accent: #00ff99;
-  --card-bg: #1e1e1e;
+  --primary: #7b68ee;
+  --secondary: #5336d0;
+  --accent: #00b4ff;
+  --card-bg: #12121f;
   --muted: #777777;
-  --neon-glow: 0 0 10px rgba(0, 255, 153, 0.7);
+  --neon-glow: 0 0 10px rgba(0, 180, 255, 0.7);
 }
 
 @theme inline {
@@ -26,7 +26,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+    --background: #080814;
     --foreground: #ededed;
   }
 }
@@ -36,8 +36,15 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   min-height: 100vh;
+  scroll-behavior: smooth;
 }
 
+/* Smooth scrolling for the entire document */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Enhanced glow animation */
 @keyframes glow {
   0% {
     box-shadow: 0 0 5px var(--accent);
@@ -50,29 +57,68 @@ body {
   }
 }
 
+/* Floating animation */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+/* Pulse animation */
+@keyframes softPulse {
+  0% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.7;
+  }
+}
+
 .neon-button {
   border: 1px solid var(--accent);
   color: var(--accent);
   background-color: transparent;
   transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
 }
 
 .neon-button:hover {
   background-color: var(--accent);
   color: var(--background);
   box-shadow: var(--neon-glow);
+  transform: translateY(-2px);
+}
+
+.neon-button:active {
+  transform: translateY(1px);
+  box-shadow: 0 0 5px rgba(0, 180, 255, 0.5);
+  transition: all 0.1s ease;
 }
 
 .movie-card {
   background: var(--card-bg);
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .movie-card:hover {
   transform: translateY(-5px);
   box-shadow: var(--neon-glow);
+  border-color: rgba(0, 180, 255, 0.3);
 }
 
 .gradient-text {
@@ -80,4 +126,53 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  background-size: 200% auto;
+  animation: gradient 8s linear infinite;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% center;
+  }
+  50% {
+    background-position: 100% center;
+  }
+  100% {
+    background-position: 0% center;
+  }
+}
+
+/* Animate content fade in */
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }
