@@ -57,9 +57,27 @@ export default function ShowPlayer({ show, onClose, initialIdType = 'imdb' }: Sh
     if (show.imdb_id) {
       setCurrentIdType('imdb');
       setEmbedUrl(getVidFastTVEmbedUrl(show.imdb_id, selectedSeason, selectedEpisode));
+      setImdbIdFound(true);
     } else if (show.tmdb_id) {
       setCurrentIdType('tmdb');
       setEmbedUrl(getVidFastTVEmbedUrl(show.tmdb_id, selectedSeason, selectedEpisode));
+    } else if (show.id) {
+      // Handle case where we only have an ID without explicit type
+      // Try to detect if it's an IMDb ID (typically starts with 'tt')
+      const idString = String(show.id);
+      if (idString.startsWith('tt')) {
+        setCurrentIdType('imdb');
+        // Treat show.id as imdb_id for direct play
+        (show as any).imdb_id = idString;
+        setEmbedUrl(getVidFastTVEmbedUrl(idString, selectedSeason, selectedEpisode));
+        setImdbIdFound(true);
+      } else {
+        // Otherwise assume it's a TMDB ID
+        setCurrentIdType('tmdb');
+        // Treat show.id as tmdb_id for direct play
+        (show as any).tmdb_id = Number(idString) || idString;
+        setEmbedUrl(getVidFastTVEmbedUrl(idString, selectedSeason, selectedEpisode));
+      }
     } else {
       setEmbedUrl('');
     }
@@ -68,8 +86,16 @@ export default function ShowPlayer({ show, onClose, initialIdType = 'imdb' }: Sh
   // Try to get IMDb ID if not available - this is now a critical step
   useEffect(() => {
     const fetchImdbId = async () => {
-      // Only try to fetch if we don't already have an IMDb ID
-      if (!show.imdb_id && show.name) {
+      // Skip fetching if we already have a direct ID in show.id, show.imdb_id, or show.tmdb_id
+      if ((show.id && String(show.id).startsWith('tt')) || show.imdb_id || show.tmdb_id) {
+        // We already have an ID we can use, no need to search
+        setIsScrapingImdb(false);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Only try to fetch if we don't have any usable ID and show has a name
+      if (!show.imdb_id && !show.tmdb_id && show.name) {
         try {
           setIsScrapingImdb(true);
           setIsLoading(true);
@@ -125,6 +151,20 @@ export default function ShowPlayer({ show, onClose, initialIdType = 'imdb' }: Sh
     if (currentIdType === 'imdb' && show.tmdb_id) {
       setAlternativeIdType('tmdb');
       setShowConfirmDialog(true);
+      return;
+    } else if (currentIdType === 'tmdb' && (show.imdb_id || (show.id && String(show.id).startsWith('tt')))) {
+      // If TMDB failed and we have or can detect an IMDb ID, try that
+      const imdbId = show.imdb_id || String(show.id);
+      setCurrentIdType('imdb');
+      setIsLoading(true);
+      
+      // Update embed URL
+      const newUrl = getVidFastTVEmbedUrl(imdbId, selectedSeason, selectedEpisode);
+      setEmbedUrl(newUrl);
+      
+      if (iframeRef.current) {
+        iframeRef.current.src = newUrl;
+      }
       return;
     }
     

@@ -21,6 +21,9 @@ const Recommender: React.FC<RecommenderProps> = ({ onMovieSelect }) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Media type state
+  const [mediaType, setMediaType] = useState<'movie' | 'tv'>('movie');
+  
   // Year filter states
   const [startYear, setStartYear] = useState<number>(0);
   const [yearRange, setYearRange] = useState<number>(0);
@@ -65,6 +68,7 @@ const Recommender: React.FC<RecommenderProps> = ({ onMovieSelect }) => {
           genre: selectedGenre || undefined,
           description: description || undefined,
           count: 3,
+          media_type: mediaType
         }),
       });
 
@@ -139,13 +143,38 @@ const Recommender: React.FC<RecommenderProps> = ({ onMovieSelect }) => {
       setIsLoading(true);
       setError("");
 
-      const result = await getMovieRecommendations(
-        {
-          genre: selectedGenre || undefined,
-          description: description || undefined
-        },
-        3
-      );
+      let result;
+      if (mediaType === 'movie') {
+        result = await getMovieRecommendations(
+          {
+            genre: selectedGenre || undefined,
+            description: description || undefined,
+            media_type: mediaType
+          },
+          3
+        );
+      } else {
+        // Load TV shows
+        try {
+          result = await fetch("/api/recommend", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              genre: selectedGenre || undefined,
+              description: description || undefined,
+              count: 3,
+              media_type: mediaType
+            }),
+          });
+          const data = await result.json();
+          result = data.media;
+        } catch (error) {
+          console.error("Error getting TV recommendations:", error);
+          throw new Error("Failed to load TV recommendations");
+        }
+      }
       
       // Filter out any recommendations that have the same ID or title as existing ones
       let uniqueNewRecommendations = result.filter((newMedia: Media) => {
@@ -211,7 +240,42 @@ const Recommender: React.FC<RecommenderProps> = ({ onMovieSelect }) => {
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="bg-gray-900 rounded-lg p-6 mb-8">
-        <h2 className="text-xl font-bold mb-4">Movie Recommender</h2>
+        <h2 className="text-xl font-bold mb-4">Content Recommender</h2>
+        
+        {/* Media Type Selection */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-2">
+            Content Type:
+          </label>
+          <div className="flex space-x-4">
+            <button
+              onClick={() => {
+                setMediaType('movie');
+                if (recommendations.length > 0) clearRecommendations();
+              }}
+              className={`px-4 py-2 rounded-full ${
+                mediaType === 'movie'
+                  ? 'bg-accent text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              Movies
+            </button>
+            <button
+              onClick={() => {
+                setMediaType('tv');
+                if (recommendations.length > 0) clearRecommendations();
+              }}
+              className={`px-4 py-2 rounded-full ${
+                mediaType === 'tv'
+                  ? 'bg-accent text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              TV Series
+            </button>
+          </div>
+        </div>
         
         <div className="mb-4">
           <label className="block text-sm font-medium mb-2">
@@ -338,7 +402,7 @@ const Recommender: React.FC<RecommenderProps> = ({ onMovieSelect }) => {
       {filteredRecommendations.length > 0 && (
         <div>
           <h3 className="text-xl font-bold mb-4">
-            Recommended Movies
+            Recommended {mediaType === 'movie' ? 'Movies' : 'TV Shows'}
             {filterByYear && startYear > 0 && yearRange > 0 && (
               <span className="text-sm font-normal text-gray-400 ml-2">
                 ({startYear} - {startYear + yearRange})

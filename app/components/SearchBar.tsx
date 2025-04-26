@@ -27,6 +27,13 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
   const [selectedEpisode, setSelectedEpisode] = useState(1);
   const [totalSeasons, setTotalSeasons] = useState(1);
   const [episodesPerSeason, setEpisodesPerSeason] = useState<{[key: number]: number}>({});
+  
+  // Play by ID - TV show specific states
+  const [isShowContent, setIsShowContent] = useState(false);
+  const [showId, setShowId] = useState("");
+  const [showSeason, setShowSeason] = useState("1");
+  const [showEpisode, setShowEpisode] = useState("1");
+  const [showIdType, setShowIdType] = useState<'imdb' | 'tmdb'>('imdb');
 
   // Function to extract the first sentence from a text
   const getFirstSentence = (text: string): string => {
@@ -72,26 +79,60 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
   }, [query, showIdSearch, searchMode]);
 
   const playMediaDirectlyById = () => {
-    if (!mediaId.trim()) {
-      alert("Please enter a valid ID");
-      return;
+    if (isShowContent) {
+      if (!showId.trim()) {
+        alert("Please enter a valid show ID");
+        return;
+      }
+      
+      // Create a minimal TV show object with the ID, season and episode for the player
+      const directTVShow: TVShow = {
+        id: showId,
+        name: `TV Show ID: ${showId}`,
+        overview: "",
+        poster_path: null,
+        first_air_date: "",
+        vote_average: 0,
+        media_type: 'tv',
+        selected_season: parseInt(showSeason),
+        selected_episode: parseInt(showEpisode)
+      };
+      
+      // Add the ID to the appropriate field based on selected type
+      if (showIdType === 'imdb') {
+        directTVShow.imdb_id = showId;
+      } else {
+        directTVShow.tmdb_id = Number(showId);
+      }
+      
+      // Pass the TV show object to the player
+      onMovieSelect(directTVShow);
+      setShowId("");
+      setShowSeason("1");
+      setShowEpisode("1");
+      setShowIdSearch(false);
+    } else {
+      if (!mediaId.trim()) {
+        alert("Please enter a valid ID");
+        return;
+      }
+      
+      // Create a minimal media object with the ID for the player
+      const directMedia: Media = {
+        id: mediaId,
+        title: `Content ID: ${mediaId}`,
+        overview: "",
+        poster_path: null,
+        release_date: "",
+        vote_average: 0,
+        media_type: 'movie'
+      };
+      
+      // Pass the media object to the player
+      onMovieSelect(directMedia);
+      setMediaId("");
+      setShowIdSearch(false);
     }
-    
-    // Create a minimal media object with the ID for the player
-    const directMedia: Media = {
-      id: mediaId,
-      title: `Content ID: ${mediaId}`,
-      overview: "",
-      poster_path: null,
-      release_date: "",
-      vote_average: 0,
-      media_type: 'movie'
-    };
-    
-    // Pass the media object to the player
-    onMovieSelect(directMedia);
-    setMediaId("");
-    setShowIdSearch(false);
   };
 
   useEffect(() => {
@@ -249,16 +290,97 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
       ) : (
         // Direct ID Play UI
         <div className="flex flex-col space-y-2">
-          <input
-            type="text"
-            placeholder="Enter content ID"
-            value={mediaId}
-            onChange={(e) => setMediaId(e.target.value.trim())}
-            className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
-          />
+          <div className="flex justify-between items-center mb-2">
+            <div className="text-sm text-white">Content Type:</div>
+            <div className="flex space-x-2">
+              <button 
+                onClick={() => setIsShowContent(false)}
+                className={`px-3 py-1 text-sm rounded-full ${!isShowContent ? 'bg-accent text-white' : 'bg-gray-800 text-gray-300'}`}
+              >
+                Movie
+              </button>
+              <button 
+                onClick={() => setIsShowContent(true)}
+                className={`px-3 py-1 text-sm rounded-full ${isShowContent ? 'bg-accent text-white' : 'bg-gray-800 text-gray-300'}`}
+              >
+                TV Show
+              </button>
+            </div>
+          </div>
+
+          {!isShowContent ? (
+            // Movie ID UI
+            <input
+              type="text"
+              placeholder="Enter movie ID"
+              value={mediaId}
+              onChange={(e) => setMediaId(e.target.value.trim())}
+              className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          ) : (
+            // TV Show ID UI
+            <div className="space-y-2">
+              <div className="flex justify-between items-center mb-2">
+                <div className="text-xs text-gray-400">ID Type:</div>
+                <div className="flex space-x-2">
+                  <button 
+                    onClick={() => setShowIdType('imdb')}
+                    className={`px-3 py-1 text-xs rounded-full ${showIdType === 'imdb' ? 'bg-accent text-white' : 'bg-gray-800 text-gray-300'}`}
+                  >
+                    IMDb ID
+                  </button>
+                  <button 
+                    onClick={() => setShowIdType('tmdb')}
+                    className={`px-3 py-1 text-xs rounded-full ${showIdType === 'tmdb' ? 'bg-accent text-white' : 'bg-gray-800 text-gray-300'}`}
+                  >
+                    TMDB ID
+                  </button>
+                </div>
+              </div>
+              
+              <input
+                type="text"
+                placeholder={`Enter ${showIdType === 'imdb' ? 'IMDb' : 'TMDB'} ID`}
+                value={showId}
+                onChange={(e) => setShowId(e.target.value.trim())}
+                className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+              />
+              
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col space-y-1">
+                  <label className="text-xs text-gray-400">Season</label>
+                  <input
+                    type="number"
+                    placeholder="Season"
+                    min="1"
+                    value={showSeason}
+                    onChange={(e) => setShowSeason(e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                </div>
+                <div className="flex flex-col space-y-1">
+                  <label className="text-xs text-gray-400">Episode</label>
+                  <input
+                    type="number"
+                    placeholder="Episode"
+                    min="1"
+                    value={showEpisode}
+                    onChange={(e) => setShowEpisode(e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                {showIdType === 'imdb' 
+                  ? "Example: tt1234567 (starts with 'tt')" 
+                  : "Example: 1234 (numeric ID only)"}
+              </p>
+            </div>
+          )}
+          
           <button
             onClick={playMediaDirectlyById}
-            disabled={!mediaId.trim()}
+            disabled={!isShowContent ? !mediaId.trim() : !showId.trim()}
             className="w-full px-4 py-3 bg-accent rounded-lg text-white font-medium focus:outline-none disabled:opacity-50"
           >
             Play Content

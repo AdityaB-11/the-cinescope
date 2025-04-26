@@ -2,12 +2,12 @@
 
 import React from "react";
 import Image from "next/image";
-import { Movie } from "../types";
+import { Movie, Media, TVShow, isMovie, isTVShow } from "../types";
 import { getFullPosterPath } from "../lib/api";
 
 interface MovieCardProps {
-  movie: Movie;
-  onWatch: (movie: Movie, idType?: 'tmdb' | 'imdb') => void;
+  movie: Media;
+  onWatch: (movie: Media, idType?: 'tmdb' | 'imdb') => void;
 }
 
 export default function MovieCard({ movie, onWatch }: MovieCardProps) {
@@ -20,7 +20,28 @@ export default function MovieCard({ movie, onWatch }: MovieCardProps) {
     return yearMatch ? yearMatch[1] : "Unknown";
   };
 
-  const releaseYear = getReleaseYear(movie.release_date);
+  // Get the appropriate title based on media type
+  const getTitle = (): string => {
+    if (isMovie(movie)) {
+      return movie.title;
+    } else if (isTVShow(movie)) {
+      return (movie as TVShow).name;
+    }
+    return "Unknown media";
+  };
+
+  // Get the appropriate release date based on media type
+  const getReleaseDate = (): string => {
+    if (isMovie(movie)) {
+      return movie.release_date;
+    } else if (isTVShow(movie)) {
+      return (movie as TVShow).first_air_date;
+    }
+    return "Unknown";
+  };
+
+  const releaseYear = getReleaseYear(getReleaseDate());
+  const title = getTitle();
   
   // Generate rating stars based on vote_average (out of 10)
   const renderRating = (rating: number): React.ReactElement => {
@@ -54,7 +75,7 @@ export default function MovieCard({ movie, onWatch }: MovieCardProps) {
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-t-lg">
         <Image
           src={getFullPosterPath(movie.poster_path)}
-          alt={movie.title}
+          alt={title}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="object-cover"
@@ -62,7 +83,7 @@ export default function MovieCard({ movie, onWatch }: MovieCardProps) {
         />
       </div>
       <div className="p-4 flex flex-col flex-grow">
-        <h3 className="font-bold text-lg mb-1">{movie.title}</h3>
+        <h3 className="font-bold text-lg mb-1">{title}</h3>
         <div className="flex justify-between items-center mb-2">
           <p className="text-gray-400 text-sm">{releaseYear}</p>
           {movie.vote_average > 0 && renderRating(movie.vote_average)}
