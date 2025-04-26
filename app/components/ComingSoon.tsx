@@ -5,16 +5,6 @@ import Image from 'next/image';
 export default function ComingSoon() {
   const features = [
     {
-      id: 1,
-      title: "Web Series & TV Shows",
-      description: "Discover and watch the latest and most popular web series and TV shows from around the world.",
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-        </svg>
-      )
-    },
-    {
       id: 2,
       title: "Anime",
       description: "Explore a vast collection of anime series and movies with personalized recommendations.",
@@ -24,6 +14,7 @@ export default function ComingSoon() {
         </svg>
       )
     }
+    // Add more upcoming features here
   ];
 
   return (
@@ -40,7 +31,7 @@ export default function ComingSoon() {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 gap-8 max-w-lg mx-auto">
           {features.map((feature) => (
             <div 
               key={feature.id} 

@@ -23,9 +23,9 @@ The CineScope is a modern movie discovery platform that helps users find and enj
 
 ### ✨ Key Features
 
-- 🔍 **Smart Search**: Find movies by title with real-time results
-- 🎯 **Direct Access**: Enter movie IDs for instant access to specific content
-- 🤖 **AI-Powered Recommendations**: Get personalized suggestions based on genres, themes, or descriptions
+- 🔍 **Smart Search**: Find movies and TV shows by title with real-time results
+- 🎯 **Direct Access**: Enter content IDs for instant access to specific movies or TV shows
+- 🤖 **AI-Powered Recommendations**: Get personalized movie and TV show suggestions based on genres, themes, or descriptions
 - 📅 **Year Filtering**: Narrow down recommendations by release year
 - 🎨 **Beautiful UI**: Modern, responsive interface with smooth animations
 - 🌙 **Dark Theme**: Sleek violet, blue, and black color scheme for comfortable viewing
@@ -77,7 +77,6 @@ The application is structured around these key components:
 Future enhancements planned for The CineScope:
 
 - ✅ **Web Series & TV Shows**: Expanding content beyond movies
-- ✅ **Anime Section**: Dedicated section for anime content
 - 📱 **Mobile App**: Native mobile applications for iOS and Android
 - 👥 **User Profiles**: Personalized user accounts with watchlists and history
 - 🌐 **Social Features**: Share recommendations with friends

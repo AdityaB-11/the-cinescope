@@ -31,7 +31,7 @@ export default function Hero() {
           </h1>
           
           <p className="text-xl md:text-2xl text-gray-300 mb-10 transition-opacity duration-300">
-            Find, watch, and get personalized recommendations for the best movies all in one place
+            Find, watch, and get personalized recommendations for the best movies and shows all in one place
           </p>
           
           <div className="flex flex-wrap justify-center gap-4 mb-12">
@@ -39,7 +39,7 @@ export default function Hero() {
               onClick={() => handleModeChange("search")}
               className="neon-button py-3 px-8 rounded-full font-medium text-lg transition-all duration-300"
             >
-              Find Movies
+              Find Movies/Shows
             </button>
             <button 
               onClick={() => handleModeChange("recommend")}
