@@ -4,10 +4,11 @@ import { useState, useEffect, useRef } from "react";
 import Header from "./components/Header";
 import SearchBar from "./components/SearchBar";
 import Recommender from "./components/Recommender";
-import MediaPlayer from "./components/MediaPlayer";
+import MoviePlayer from "./components/MoviePlayer";
+import ShowPlayer from "./components/ShowPlayer";
 import Hero from "./components/Hero";
 import ComingSoon from "./components/ComingSoon";
-import { Media } from "./types";
+import { Media, Movie, TVShow, isMovie, isTVShow } from "./types";
 
 export default function Home() {
   const [mode, setMode] = useState<"search" | "recommend">("search");
@@ -47,6 +48,31 @@ export default function Home() {
 
   const handleClosePlayer = () => {
     setSelectedMedia(null);
+  };
+
+  // Render the appropriate player component based on media type
+  const renderMediaPlayer = () => {
+    if (!selectedMedia) return null;
+    
+    if (isMovie(selectedMedia)) {
+      return (
+        <MoviePlayer 
+          movie={selectedMedia as Movie} 
+          onClose={handleClosePlayer}
+          initialIdType="imdb"
+        />
+      );
+    } else if (isTVShow(selectedMedia)) {
+      return (
+        <ShowPlayer 
+          show={selectedMedia as TVShow} 
+          onClose={handleClosePlayer}
+          initialIdType="imdb"
+        />
+      );
+    }
+    
+    return null;
   };
 
   return (
@@ -110,12 +136,7 @@ export default function Home() {
         </div>
       </footer>
 
-      {selectedMedia && (
-        <MediaPlayer 
-          media={selectedMedia} 
-          onClose={handleClosePlayer}
-        />
-      )}
+      {renderMediaPlayer()}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getMovieRecommendations } from "@/app/lib/gemini";
+import { getMovieRecommendations, getTVShowRecommendations } from "@/app/lib/gemini";
 
 export async function POST(request: Request) {
   try {
@@ -13,16 +13,31 @@ export async function POST(request: Request) {
       );
     }
 
-    const recommendations = await getMovieRecommendations(
-      { 
-        genre, 
-        description,
-        media_type
-      }, 
-      count
-    );
-
-    return NextResponse.json({ media: recommendations });
+    if (media_type === 'tv') {
+      // TV show recommendations
+      const recommendations = await getTVShowRecommendations(
+        { 
+          genre, 
+          description,
+          media_type
+        }, 
+        count
+      );
+      
+      return NextResponse.json({ media: recommendations });
+    } else {
+      // Movie recommendations (default)
+      const recommendations = await getMovieRecommendations(
+        { 
+          genre, 
+          description,
+          media_type
+        }, 
+        count
+      );
+      
+      return NextResponse.json({ media: recommendations });
+    }
   } catch (error) {
     console.error("Error in recommend API:", error);
     return NextResponse.json(

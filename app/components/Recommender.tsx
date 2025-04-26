@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import MediaCard from "./MediaCard";
+import MovieCard from "./MovieCard";
 import { Media, Movie, isMovie } from "../types";
 import { formatReleaseDate } from '../lib/api';
 import { getMovieRecommendations } from '../lib/gemini';
@@ -346,12 +346,12 @@ const Recommender: React.FC<RecommenderProps> = ({ onMovieSelect }) => {
             )}
           </h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-            {filteredRecommendations.map((media, index) => (
-              <MediaCard
-                key={`rec-${media.id}-${index}`}
-                media={media}
-                onSelect={onMovieSelect}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-6">
+            {filteredRecommendations.map((media) => (
+              <MovieCard
+                key={media.id}
+                movie={media as Movie}
+                onWatch={(movie) => onMovieSelect(movie)}
               />
             ))}
           </div>

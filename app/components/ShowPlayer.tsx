@@ -1,62 +1,98 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Movie } from "../types";
-import { getVidFastEmbedUrl, searchImdbAndExtractId } from "../lib/api";
+import { TVShow } from "../types";
+import { getVidFastTVEmbedUrl, searchImdbAndExtractId } from "../lib/api";
 
-interface MoviePlayerProps {
-  movie: Movie;
+interface ShowPlayerProps {
+  show: TVShow;
   onClose: () => void;
   initialIdType?: 'tmdb' | 'imdb';
 }
 
-export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: MoviePlayerProps) {
+export default function ShowPlayer({ show, onClose, initialIdType = 'imdb' }: ShowPlayerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [currentIdType, setCurrentIdType] = useState<'tmdb' | 'imdb'>(initialIdType);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [alternativeIdType, setAlternativeIdType] = useState<'tmdb' | null>(null);
   const [isScrapingImdb, setIsScrapingImdb] = useState(false);
-  const [imdbIdFound, setImdbIdFound] = useState(!!movie.imdb_id);
+  const [imdbIdFound, setImdbIdFound] = useState(!!show.imdb_id);
   const [embedUrl, setEmbedUrl] = useState<string>('');
+  
+  // Season and episode selection
+  const [selectedSeason, setSelectedSeason] = useState(show.selected_season || 1);
+  const [selectedEpisode, setSelectedEpisode] = useState(show.selected_episode || 1);
+  const [episodesPerSeason, setEpisodesPerSeason] = useState<{[key: number]: number}>({});
+  const [totalSeasons, setTotalSeasons] = useState(show.number_of_seasons || 1);
+  
+  // Effect to set up seasons data
+  useEffect(() => {
+    // Use episodes_per_season from the show if available, otherwise use defaults
+    if (show.episodes_per_season) {
+      const episodesMap: {[key: number]: number} = {};
+      // Convert string keys to numbers
+      Object.entries(show.episodes_per_season).forEach(([season, count]) => {
+        episodesMap[parseInt(season)] = count;
+      });
+      setEpisodesPerSeason(episodesMap);
+    } else {
+      // Default to a reasonable number of episodes per season if not provided
+      const defaultEpisodesPerSeason: {[key: number]: number} = {};
+      for (let i = 1; i <= (show.number_of_seasons || 1); i++) {
+        defaultEpisodesPerSeason[i] = 10; // Default to 10 episodes per season
+      }
+      setEpisodesPerSeason(defaultEpisodesPerSeason);
+    }
+    setTotalSeasons(show.number_of_seasons || 1);
+  }, [show]);
   
   // Effect to determine the proper ID type and embed URL
   useEffect(() => {
-    // Determine the best ID to use
-    if (movie.imdb_id) {
+    updateEmbedUrl();
+  }, [show.imdb_id, show.tmdb_id, selectedSeason, selectedEpisode]);
+  
+  // Update embed URL based on current selections
+  const updateEmbedUrl = () => {
+    if (show.imdb_id) {
       setCurrentIdType('imdb');
-      setEmbedUrl(getVidFastEmbedUrl(movie.imdb_id));
-    } else if (movie.tmdb_id) {
+      setEmbedUrl(getVidFastTVEmbedUrl(show.imdb_id, selectedSeason, selectedEpisode));
+    } else if (show.tmdb_id) {
       setCurrentIdType('tmdb');
-      setEmbedUrl(getVidFastEmbedUrl(movie.tmdb_id));
+      setEmbedUrl(getVidFastTVEmbedUrl(show.tmdb_id, selectedSeason, selectedEpisode));
     } else {
       setEmbedUrl('');
     }
-  }, [movie.imdb_id, movie.tmdb_id]);
+  };
   
   // Try to get IMDb ID if not available - this is now a critical step
   useEffect(() => {
     const fetchImdbId = async () => {
       // Only try to fetch if we don't already have an IMDb ID
-      if (!movie.imdb_id && movie.title) {
+      if (!show.imdb_id && show.name) {
         try {
           setIsScrapingImdb(true);
           setIsLoading(true);
           
-          // Extract release year from release_date if available
-          const releaseYear = movie.release_date ? movie.release_date.substring(0, 4) : undefined;
+          // Extract release year from first_air_date if available
+          const releaseYear = show.first_air_date && typeof show.first_air_date === 'string' 
+            ? show.first_air_date.substring(0, 4) 
+            : undefined;
           
-          const imdbId = await searchImdbAndExtractId(movie.title, releaseYear);
+          const imdbId = await searchImdbAndExtractId(show.name, releaseYear, 'tv');
           
           if (imdbId) {
-            // Since we can't directly modify the movie prop, we need to add the ID to the movie object in memory
-            (movie as any).imdb_id = imdbId;
+            // Since we can't directly modify the show prop, we need to add the ID to the show object in memory
+            (show as any).imdb_id = imdbId;
             setImdbIdFound(true);
-            console.log(`Found IMDb ID: ${imdbId} for ${movie.title}`);
+            console.log(`Found IMDb ID: ${imdbId} for ${show.name}`);
+            
+            // Update the embed URL now that we have the IMDb ID
+            updateEmbedUrl();
           } else {
             // If no IMDb ID found, show error immediately
             setHasError(true);
-            console.error(`No IMDb ID found for ${movie.title}`);
+            console.error(`No IMDb ID found for ${show.name}`);
           }
         } catch (error) {
           console.error("Error fetching IMDb ID:", error);
@@ -69,13 +105,11 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
     };
 
     fetchImdbId();
-  }, [movie]);
+  }, [show]);
   
-  // Get the appropriate embed URL based on currentIdType and available IDs
-  // This is now just a helper function, not called during render
-  const getEmbedUrl = (idType: 'imdb' | 'tmdb', id?: string | number): string => {
-    if (!id) return '';
-    return getVidFastEmbedUrl(id);
+  // Get the appropriate embed URL based on ID type, show ID, season, and episode
+  const getVidFastTVEmbedUrl = (id: string | number, season: number, episode: number): string => {
+    return `https://vidfast.pro/tv/${id}/${season}/${episode}?autoPlay=true`;
   };
   
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -88,7 +122,7 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
     setIsLoading(false);
     
     // If using IMDb ID and it failed, and we have TMDB ID, offer to try that
-    if (currentIdType === 'imdb' && movie.tmdb_id) {
+    if (currentIdType === 'imdb' && show.tmdb_id) {
       setAlternativeIdType('tmdb');
       setShowConfirmDialog(true);
       return;
@@ -100,13 +134,13 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
 
   // Function to handle confirmation of alternative ID
   const handleConfirmAlternativeId = () => {
-    if (alternativeIdType && alternativeIdType === 'tmdb' && movie.tmdb_id) {
+    if (alternativeIdType && alternativeIdType === 'tmdb' && show.tmdb_id) {
       setCurrentIdType('tmdb');
       setIsLoading(true);
       setShowConfirmDialog(false);
       
       // Update embed URL
-      const newUrl = getVidFastEmbedUrl(movie.tmdb_id);
+      const newUrl = getVidFastTVEmbedUrl(show.tmdb_id, selectedSeason, selectedEpisode);
       setEmbedUrl(newUrl);
       
       // Force iframe refresh with new URL
@@ -122,29 +156,44 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
     setHasError(true);
   };
 
+  // Handle season change
+  const handleSeasonChange = (season: number) => {
+    setSelectedSeason(season);
+    setSelectedEpisode(1); // Reset to episode 1 when changing seasons
+    setIsLoading(true);
+  };
+  
+  // Handle episode change
+  const handleEpisodeChange = (episode: number) => {
+    setSelectedEpisode(episode);
+    setIsLoading(true);
+  };
+
   // Retry function
   const handleRetry = () => {
     setIsLoading(true);
     setHasError(false);
     
     // Try to re-fetch the IMDb ID
-    if (!movie.imdb_id && movie.title) {
+    if (!show.imdb_id && show.name) {
       const fetchImdbId = async () => {
         try {
           setIsScrapingImdb(true);
           
-          // Extract release year from release_date if available
-          const releaseYear = movie.release_date ? movie.release_date.substring(0, 4) : undefined;
+          // Extract release year from first_air_date if available
+          const releaseYear = show.first_air_date && typeof show.first_air_date === 'string' 
+            ? show.first_air_date.substring(0, 4) 
+            : undefined;
           
-          const imdbId = await searchImdbAndExtractId(movie.title, releaseYear);
+          const imdbId = await searchImdbAndExtractId(show.name, releaseYear, 'tv');
           
           if (imdbId) {
-            (movie as any).imdb_id = imdbId;
+            (show as any).imdb_id = imdbId;
             setImdbIdFound(true);
             setCurrentIdType('imdb');
             
             // Update embed URL
-            const newUrl = getVidFastEmbedUrl(imdbId);
+            const newUrl = getVidFastTVEmbedUrl(imdbId, selectedSeason, selectedEpisode);
             setEmbedUrl(newUrl);
             
             // Refresh iframe with new IMDb ID
@@ -163,12 +212,12 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
       };
       
       fetchImdbId();
-    } else if (movie.imdb_id) {
+    } else if (show.imdb_id) {
       // We already have an IMDb ID, try again with it
       setCurrentIdType('imdb');
       
       // Update embed URL
-      const newUrl = getVidFastEmbedUrl(movie.imdb_id);
+      const newUrl = getVidFastTVEmbedUrl(show.imdb_id, selectedSeason, selectedEpisode);
       setEmbedUrl(newUrl);
       
       if (iframeRef.current) {
@@ -187,7 +236,26 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
   
   // Get the current ID value
   const getCurrentId = () => {
-    return currentIdType === 'imdb' ? movie.imdb_id : movie.tmdb_id;
+    return currentIdType === 'imdb' ? show.imdb_id : show.tmdb_id;
+  };
+  
+  // Generate season options
+  const renderSeasonOptions = () => {
+    return Array.from({ length: totalSeasons }, (_, i) => i + 1).map(season => (
+      <option key={`season-${season}`} value={season}>
+        Season {season}
+      </option>
+    ));
+  };
+  
+  // Generate episode options
+  const renderEpisodeOptions = () => {
+    const episodeCount = episodesPerSeason[selectedSeason] || 10;
+    return Array.from({ length: episodeCount }, (_, i) => i + 1).map(episode => (
+      <option key={`episode-${episode}`} value={episode}>
+        Episode {episode}
+      </option>
+    ));
   };
   
   return (
@@ -195,7 +263,7 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
       <div className="w-full max-w-5xl bg-card-bg rounded-lg overflow-hidden shadow-xl">
         <div className="p-4 flex items-center justify-between border-b border-gray-800">
           <div>
-            <h3 className="text-xl font-medium">{movie.title}</h3>
+            <h3 className="text-xl font-medium">{show.name}</h3>
             <p className="text-sm text-gray-400">
               {getIdTypeText()}: {getCurrentId()}
               {isScrapingImdb && (
@@ -205,8 +273,8 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
               )}
             </p>
             <div className="text-xs text-gray-500 mt-1">
-              {movie.tmdb_id && currentIdType !== 'tmdb' && <span className="mr-2">TMDB: {movie.tmdb_id}</span>}
-              {movie.imdb_id && currentIdType !== 'imdb' && <span className="mr-2">IMDb: {movie.imdb_id}</span>}
+              {show.tmdb_id && currentIdType !== 'tmdb' && <span className="mr-2">TMDB: {show.tmdb_id}</span>}
+              {show.imdb_id && currentIdType !== 'imdb' && <span className="mr-2">IMDb: {show.imdb_id}</span>}
             </div>
           </div>
           <button
@@ -230,13 +298,42 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
           </button>
         </div>
         
+        {/* Season and Episode Selector */}
+        <div className="p-3 bg-gray-800 flex flex-wrap items-center gap-3">
+          <div className="flex items-center">
+            <select
+              value={selectedSeason}
+              onChange={(e) => handleSeasonChange(Number(e.target.value))}
+              className="bg-gray-700 text-white rounded px-2 py-1 text-sm min-w-[120px]"
+            >
+              {renderSeasonOptions()}
+            </select>
+          </div>
+          
+          <div className="flex items-center">
+            <select
+              value={selectedEpisode}
+              onChange={(e) => handleEpisodeChange(Number(e.target.value))}
+              className="bg-gray-700 text-white rounded px-2 py-1 text-sm min-w-[120px]"
+            >
+              {renderEpisodeOptions()}
+            </select>
+          </div>
+          
+          <div className="flex-grow"></div>
+          
+          <div className="text-sm text-gray-300">
+            S{selectedSeason}:E{selectedEpisode}
+          </div>
+        </div>
+        
         <div className="relative w-full pt-[56.25%]">
           {isLoading && (
             <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black">
               <div className="text-center">
                 <div className="animate-spin h-12 w-12 border-4 border-accent border-t-transparent rounded-full mx-auto mb-4"></div>
                 <p className="text-gray-300">
-                  {isScrapingImdb ? 'Searching for IMDb ID...' : 'Loading movie player...'}
+                  {isScrapingImdb ? 'Searching for IMDb ID...' : 'Loading show player...'}
                 </p>
               </div>
             </div>
@@ -250,7 +347,7 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
                 </svg>
                 <h3 className="text-xl font-bold mb-2">Playback Issue</h3>
                 <p className="text-gray-300 mb-4">
-                  The movie couldn't be loaded with the IMDb ID. 
+                  The show couldn't be loaded with the IMDb ID. 
                   Would you like to try the TMDB ID instead?
                 </p>
                 <div className="flex space-x-3 justify-center">
@@ -279,9 +376,9 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
                 </svg>
                 <h3 className="text-xl font-bold mb-2">Playback Error</h3>
                 <p className="text-gray-300 mb-4">
-                  {movie.imdb_id 
-                    ? 'Sorry, we tried using the IMDb ID but playback failed. This movie may be unavailable.'
-                    : 'Sorry, we couldn\'t find a valid IMDb ID for this movie. Playback is unavailable.'}
+                  {show.imdb_id 
+                    ? 'Sorry, we tried using the IMDb ID but playback failed. This show may be unavailable.'
+                    : 'Sorry, we couldn\'t find a valid IMDb ID for this show. Playback is unavailable.'}
                 </p>
                 <button 
                   onClick={handleRetry}

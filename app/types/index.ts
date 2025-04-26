@@ -24,6 +24,9 @@ export interface TVShow extends MediaBase {
   media_type: 'tv';
   number_of_seasons?: number;
   number_of_episodes?: number;
+  episodes_per_season?: {[key: string]: number};
+  selected_season?: number;
+  selected_episode?: number;
   creators?: string[];
   status?: string; // e.g., "Ended", "Running"
   networks?: string[];
