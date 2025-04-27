@@ -11,6 +11,16 @@ interface ShowPlayerProps {
 }
 
 export default function ShowPlayer({ show, onClose, initialIdType = 'imdb' }: ShowPlayerProps) {
+  // Debug log
+  console.log('ShowPlayer received:', { 
+    id: show.id, 
+    name: show.name, 
+    imdb_id: show.imdb_id, 
+    tmdb_id: show.tmdb_id,
+    season: show.selected_season,
+    episode: show.selected_episode
+  });
+
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [currentIdType, setCurrentIdType] = useState<'tmdb' | 'imdb'>(initialIdType);
@@ -86,16 +96,36 @@ export default function ShowPlayer({ show, onClose, initialIdType = 'imdb' }: Sh
   // Try to get IMDb ID if not available - this is now a critical step
   useEffect(() => {
     const fetchImdbId = async () => {
-      // Skip fetching if we already have a direct ID in show.id, show.imdb_id, or show.tmdb_id
-      if ((show.id && String(show.id).startsWith('tt')) || show.imdb_id || show.tmdb_id) {
-        // We already have an ID we can use, no need to search
+      console.log("Starting IMDb ID fetch process for:", show.name);
+      
+      // Skip fetching if we already have a direct IMDb ID starting with 'tt'
+      if ((show.id && String(show.id).startsWith('tt')) || show.imdb_id) {
+        console.log("Found existing IMDb ID:", show.imdb_id || show.id);
+        // We already have an IMDb ID we can use, no need to search
+        if (show.id && String(show.id).startsWith('tt') && !show.imdb_id) {
+          console.log(`Copying ID ${show.id} to imdb_id property`);
+          (show as any).imdb_id = String(show.id);
+        }
+        setImdbIdFound(true);
         setIsScrapingImdb(false);
         setIsLoading(false);
+        updateEmbedUrl();
         return;
       }
       
-      // Only try to fetch if we don't have any usable ID and show has a name
-      if (!show.imdb_id && !show.tmdb_id && show.name) {
+      // Only skip if we explicitly have a TMDB ID
+      if (show.tmdb_id) {
+        console.log("Using existing TMDB ID:", show.tmdb_id);
+        setIsScrapingImdb(false);
+        setIsLoading(false);
+        updateEmbedUrl();
+        return;
+      }
+      
+      // Always try to fetch an IMDb ID if we don't have a proper one already
+      // The ID from search results might just be a local ID, not a real TMDB or IMDb ID
+      if (show.name) {
+        console.log(`Attempting to search for IMDb ID for "${show.name}"`);
         try {
           setIsScrapingImdb(true);
           setIsLoading(true);
@@ -105,31 +135,48 @@ export default function ShowPlayer({ show, onClose, initialIdType = 'imdb' }: Sh
             ? show.first_air_date.substring(0, 4) 
             : undefined;
           
+          console.log(`Searching with title: "${show.name}", year: ${releaseYear || 'unknown'}, type: tv`);
           const imdbId = await searchImdbAndExtractId(show.name, releaseYear, 'tv');
           
           if (imdbId) {
             // Since we can't directly modify the show prop, we need to add the ID to the show object in memory
+            console.log(`Success! Found IMDb ID: ${imdbId} for ${show.name}`);
             (show as any).imdb_id = imdbId;
             setImdbIdFound(true);
-            console.log(`Found IMDb ID: ${imdbId} for ${show.name}`);
             
             // Update the embed URL now that we have the IMDb ID
             updateEmbedUrl();
+            setIsLoading(false);
           } else {
-            // If no IMDb ID found, show error immediately
-            setHasError(true);
-            console.error(`No IMDb ID found for ${show.name}`);
+            console.log(`IMDb search failed for "${show.name}"`);
+            // If no IMDb ID found, try to use show.id as a TMDB ID if it's numeric
+            if (show.id && !isNaN(Number(show.id))) {
+              console.log(`Falling back to using ID ${show.id} as TMDB ID`);
+              (show as any).tmdb_id = Number(show.id);
+              updateEmbedUrl();
+              setIsLoading(false);
+            } else {
+              // If no usable ID, show error
+              console.error(`No IMDb ID found for ${show.name} and no fallback available`);
+              setHasError(true);
+              setIsLoading(false);
+            }
           }
         } catch (error) {
           console.error("Error fetching IMDb ID:", error);
           setHasError(true);
+          setIsLoading(false);
         } finally {
           setIsScrapingImdb(false);
-          setIsLoading(false);
         }
+      } else {
+        console.error("No show name available for IMDb ID search");
+        setIsLoading(false);
+        setHasError(true);
       }
     };
 
+    // Run the fetching function
     fetchImdbId();
   }, [show]);
   
@@ -214,8 +261,37 @@ export default function ShowPlayer({ show, onClose, initialIdType = 'imdb' }: Sh
     setIsLoading(true);
     setHasError(false);
     
-    // Try to re-fetch the IMDb ID
-    if (!show.imdb_id && show.name) {
+    // First check if we have an IMDb ID to retry with
+    if (show.imdb_id) {
+      // We already have an IMDb ID, try again with it
+      setCurrentIdType('imdb');
+      
+      // Update embed URL
+      const newUrl = getVidFastTVEmbedUrl(show.imdb_id, selectedSeason, selectedEpisode);
+      setEmbedUrl(newUrl);
+      
+      if (iframeRef.current) {
+        iframeRef.current.src = newUrl;
+      }
+      return;
+    }
+    
+    // If we have a TMDB ID, try that
+    if (show.tmdb_id) {
+      setCurrentIdType('tmdb');
+      
+      // Update embed URL
+      const newUrl = getVidFastTVEmbedUrl(show.tmdb_id, selectedSeason, selectedEpisode);
+      setEmbedUrl(newUrl);
+      
+      if (iframeRef.current) {
+        iframeRef.current.src = newUrl;
+      }
+      return;
+    }
+    
+    // If no IMDb or TMDB ID, try to fetch IMDb ID if we have a name
+    if (show.name) {
       const fetchImdbId = async () => {
         try {
           setIsScrapingImdb(true);
@@ -241,7 +317,22 @@ export default function ShowPlayer({ show, onClose, initialIdType = 'imdb' }: Sh
               iframeRef.current.src = newUrl;
             }
           } else {
-            setHasError(true);
+            // If no IMDb ID found, try to use show.id as a TMDB ID if it's numeric
+            if (show.id && !isNaN(Number(show.id))) {
+              (show as any).tmdb_id = Number(show.id);
+              setCurrentIdType('tmdb');
+              
+              // Update embed URL
+              const newUrl = getVidFastTVEmbedUrl(Number(show.id), selectedSeason, selectedEpisode);
+              setEmbedUrl(newUrl);
+              
+              if (iframeRef.current) {
+                iframeRef.current.src = newUrl;
+              }
+            } else {
+              // No usable ID, show error
+              setHasError(true);
+            }
           }
         } catch (error) {
           console.error("Error fetching IMDb ID:", error);
@@ -252,19 +343,8 @@ export default function ShowPlayer({ show, onClose, initialIdType = 'imdb' }: Sh
       };
       
       fetchImdbId();
-    } else if (show.imdb_id) {
-      // We already have an IMDb ID, try again with it
-      setCurrentIdType('imdb');
-      
-      // Update embed URL
-      const newUrl = getVidFastTVEmbedUrl(show.imdb_id, selectedSeason, selectedEpisode);
-      setEmbedUrl(newUrl);
-      
-      if (iframeRef.current) {
-        iframeRef.current.src = newUrl;
-      }
     } else {
-      // No IMDb ID and no title to search with
+      // No name to search with, cannot proceed
       setHasError(true);
     }
   };

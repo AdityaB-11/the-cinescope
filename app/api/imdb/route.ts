@@ -23,17 +23,16 @@ export async function GET(request: Request) {
 
 async function scrapeImdbId(title: string, mediaType: string = 'all'): Promise<string | null> {
   try {
-    // Determine the search type parameter based on mediaType
+    // First attempt: Direct search with type parameter
     let typeParam = '';
     if (mediaType === 'movie') {
       typeParam = '&ttype=ft'; // Feature films
     } else if (mediaType === 'tv') {
       typeParam = '&ttype=tv'; // TV series
     }
-    // If mediaType is 'all', don't add any type filter to search everything
     
     // Encode the title for the search URL
-    const searchUrl = `https://www.imdb.com/find?q=${encodeURIComponent(title)}${typeParam}&s=tt`;
+    const searchUrl = `https://www.imdb.com/find?q=${encodeURIComponent(title)}${typeParam}&s=tt&exact=true`;
     
     console.log(`Searching IMDb with URL: ${searchUrl}`);
     
@@ -60,7 +59,52 @@ async function scrapeImdbId(title: string, mediaType: string = 'all'): Promise<s
       return match[1]; // Return the IMDb ID
     }
     
-    console.log(`No IMDb ID found for "${title}"`);
+    // Second attempt: Try without 'exact' parameter
+    if (!match) {
+      console.log("First attempt failed, trying less strict search...");
+      const fallbackUrl = `https://www.imdb.com/find?q=${encodeURIComponent(title)}${typeParam}&s=tt`;
+      
+      const fallbackResponse = await fetch(fallbackUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      });
+      
+      if (fallbackResponse.ok) {
+        const fallbackHtml = await fallbackResponse.text();
+        const fallbackMatch = fallbackHtml.match(imdbIdRegex);
+        
+        if (fallbackMatch && fallbackMatch[1]) {
+          console.log(`Found IMDb ID (fallback): ${fallbackMatch[1]} for "${title}"`);
+          return fallbackMatch[1];
+        }
+      }
+    }
+    
+    // Third attempt: Use more specific search for TV shows
+    if (mediaType === 'tv' && !match) {
+      console.log("Trying TV-specific search for:", title);
+      // Try adding "TV Series" to the query for TV shows
+      const tvSpecificUrl = `https://www.imdb.com/find?q=${encodeURIComponent(title + " TV Series")}&s=tt`;
+      
+      const tvResponse = await fetch(tvSpecificUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+      });
+      
+      if (tvResponse.ok) {
+        const tvHtml = await tvResponse.text();
+        const tvMatch = tvHtml.match(imdbIdRegex);
+        
+        if (tvMatch && tvMatch[1]) {
+          console.log(`Found IMDb ID (TV-specific): ${tvMatch[1]} for "${title}"`);
+          return tvMatch[1];
+        }
+      }
+    }
+    
+    console.log(`No IMDb ID found for "${title}" after multiple attempts`);
     return null;
   } catch (error) {
     console.error(`Error scraping IMDb ID for ${title}:`, error);

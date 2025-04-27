@@ -19,9 +19,28 @@ export async function searchTVShows(query: string): Promise<TVShow[]> {
   if (!query) return [];
   
   try {
-    return await searchTVShowsWithGemini(query);
+    console.log("Starting TV show search for:", query);
+    const results = await searchTVShowsWithGemini(query);
+    
+    // Ensure each result has valid properties
+    const validatedResults = results.map(show => {
+      // Add default values for missing properties to prevent errors
+      return {
+        ...show,
+        name: show.name || "Unknown Show",
+        first_air_date: show.first_air_date || "Unknown",
+        overview: show.overview || "",
+        number_of_seasons: show.number_of_seasons || 1,
+        episodes_per_season: show.episodes_per_season || {"1": 10},
+        media_type: 'tv'
+      };
+    });
+    
+    console.log(`Found ${validatedResults.length} TV shows for query: "${query}"`);
+    return validatedResults;
   } catch (error) {
     console.error("Error searching TV shows:", error);
+    // Return a fallback empty array instead of crashing
     return [];
   }
 }
@@ -31,17 +50,46 @@ export async function searchAllMedia(query: string): Promise<Media[]> {
   if (!query) return [];
   
   try {
-    // Search for both movies and TV shows in parallel
-    const [movies, tvShows] = await Promise.all([
-      searchMoviesWithGemini(query),
-      searchTVShowsWithGemini(query)
-    ]);
+    console.log("Starting combined media search for:", query);
+    
+    // Search for both movies and TV shows but handle them independently
+    // If one fails, we can still show results from the other
+    let movies: Movie[] = [];
+    let tvShows: TVShow[] = [];
+    
+    try {
+      movies = await searchMoviesWithGemini(query);
+      console.log(`Found ${movies.length} movies for query: "${query}"`);
+    } catch (movieError) {
+      console.error("Error searching movies:", movieError);
+    }
+    
+    try {
+      tvShows = await searchTVShowsWithGemini(query);
+      
+      // Validate TV show results
+      tvShows = tvShows.map(show => ({
+        ...show,
+        name: show.name || "Unknown Show",
+        first_air_date: show.first_air_date || "Unknown",
+        overview: show.overview || "",
+        number_of_seasons: show.number_of_seasons || 1,
+        episodes_per_season: show.episodes_per_season || {"1": 10},
+        media_type: 'tv'
+      }));
+      
+      console.log(`Found ${tvShows.length} TV shows for query: "${query}"`);
+    } catch (tvError) {
+      console.error("Error searching TV shows:", tvError);
+    }
     
     // Combine and shuffle results
     const combined = [...movies, ...tvShows];
+    console.log(`Combined results: ${combined.length} items`);
+    
     return shuffleArray(combined);
   } catch (error) {
-    console.error("Error searching all media:", error);
+    console.error("Error in combined search:", error);
     return [];
   }
 }
@@ -127,14 +175,53 @@ export async function searchImdbAndExtractId(title: string, releaseYear?: string
       searchQuery += ` ${releaseYear}`;
     }
     
-    // Use our server API endpoint instead of direct fetching
+    console.log(`Making IMDb search request: "${searchQuery}" (${mediaType})`);
+    
+    // First attempt - try with the original title
     const response = await fetch(`/api/imdb?query=${encodeURIComponent(searchQuery)}&media_type=${mediaType}`);
     if (!response.ok) {
       throw new Error('Failed to fetch IMDb ID');
     }
     
     const data = await response.json();
-    return data.imdbId || null;
+    
+    // If we found an ID, return it
+    if (data.imdbId) {
+      console.log(`Found IMDb ID in first attempt: ${data.imdbId}`);
+      return data.imdbId;
+    }
+    
+    // Second attempt - for TV shows, try with common suffixes
+    if (mediaType === 'tv' && !data.imdbId) {
+      console.log(`First attempt failed, trying with TV suffixes`);
+      
+      // TV show common suffixes to try
+      const tvSuffixes = [
+        ' TV Series',
+        ' TV Show',
+        ' Series',
+        ' Show'
+      ];
+      
+      // Try each suffix one by one
+      for (const suffix of tvSuffixes) {
+        console.log(`Trying with suffix: "${suffix}"`);
+        const tvSearchQuery = title + suffix;
+        
+        const tvResponse = await fetch(`/api/imdb?query=${encodeURIComponent(tvSearchQuery)}&media_type=tv`);
+        if (!tvResponse.ok) continue;
+        
+        const tvData = await tvResponse.json();
+        if (tvData.imdbId) {
+          console.log(`Found IMDb ID with suffix "${suffix}": ${tvData.imdbId}`);
+          return tvData.imdbId;
+        }
+      }
+    }
+    
+    // If all attempts failed, return null
+    console.log(`All IMDb search attempts failed for "${title}"`);
+    return null;
   } catch (error) {
     console.error('Error searching IMDb:', error);
     return null;
@@ -155,4 +242,43 @@ export function formatFirstAirDate(airDate: string): string {
   // Handle both "YYYY" and "YYYY-MM-DD" formats
   const yearMatch = airDate.match(/^(\d{4})/);
   return yearMatch ? yearMatch[1] : "Unknown";
+}
+
+// New function to fetch a poster image for a movie or TV show
+export async function fetchPosterImage(
+  title: string,
+  year?: string,
+  mediaType: 'movie' | 'tv' = 'movie'
+): Promise<string | null> {
+  try {
+    // Build the query parameters
+    const params = new URLSearchParams();
+    params.append('title', title);
+    if (year) params.append('year', year);
+    params.append('media_type', mediaType);
+    
+    // First, try the more reliable TMDB endpoint
+    const tmdbResponse = await fetch(`/api/tmdb-poster?${params.toString()}`);
+    
+    if (tmdbResponse.ok) {
+      const tmdbData = await tmdbResponse.json();
+      if (tmdbData.posterUrl) {
+        return tmdbData.posterUrl;
+      }
+    }
+    
+    // If TMDB doesn't have a poster, fall back to our AI approach
+    const aiResponse = await fetch(`/api/poster-search?${params.toString()}`);
+    
+    if (!aiResponse.ok) {
+      console.error('Error fetching poster:', await aiResponse.text());
+      return null;
+    }
+    
+    const aiData = await aiResponse.json();
+    return aiData.posterUrl;
+  } catch (error) {
+    console.error('Error fetching poster:', error);
+    return null;
+  }
 } 

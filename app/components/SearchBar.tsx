@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { Movie, Media, isMovie, isTVShow, TVShow } from "../types";
-import { getFullPosterPath } from "../lib/api";
+import { getFullPosterPath, fetchPosterImage, searchImdbAndExtractId } from "../lib/api";
 
 interface SearchBarProps {
   onMovieSelect: (media: Media) => void;
@@ -34,6 +34,9 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
   const [showSeason, setShowSeason] = useState("1");
   const [showEpisode, setShowEpisode] = useState("1");
   const [showIdType, setShowIdType] = useState<'imdb' | 'tmdb'>('imdb');
+  
+  // State for poster URLs
+  const [posterUrls, setPosterUrls] = useState<{[key: string]: string}>({});
 
   // Function to extract the first sentence from a text
   const getFirstSentence = (text: string): string => {
@@ -51,6 +54,7 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
         return;
       }
 
+      console.log(`Starting search for: "${query}" in mode: ${searchMode}`);
       setIsLoading(true);
       try {
         // Use different endpoints or params based on search mode
@@ -61,14 +65,28 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
           endpoint += `?query=${encodeURIComponent(query)}`;
         }
         
+        console.log(`Making fetch request to: ${endpoint}`);
         const response = await fetch(endpoint);
-        if (!response.ok) throw new Error("Search failed");
+        
+        if (!response.ok) {
+          console.error(`Search request failed with status: ${response.status}`);
+          throw new Error("Search failed");
+        }
         
         const data = await response.json();
-        setResults(data.results);
-        setShowDropdown(true);
+        console.log(`Received ${data.results ? data.results.length : 0} search results`);
+        
+        if (data.results && Array.isArray(data.results)) {
+          console.log("Search results:", data.results);
+          setResults(data.results);
+          setShowDropdown(true);
+        } else {
+          console.error("Invalid search results format:", data);
+          setResults([]);
+        }
       } catch (error) {
         console.error("Search error:", error);
+        setResults([]);
       } finally {
         setIsLoading(false);
       }
@@ -77,6 +95,57 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
     const debounce = setTimeout(fetchResults, 300);
     return () => clearTimeout(debounce);
   }, [query, showIdSearch, searchMode]);
+
+  // Fetch poster images whenever results change
+  useEffect(() => {
+    const fetchPosters = async () => {
+      const newPosterUrls: {[key: string]: string} = {...posterUrls};
+      
+      for (const media of results) {
+        const mediaKey = `${media.id}-${media.media_type}`;
+        
+        // Skip if we already have this poster URL
+        if (newPosterUrls[mediaKey]) continue;
+        
+        // Initially set with the default poster path
+        newPosterUrls[mediaKey] = getFullPosterPath(media.poster_path);
+        
+        // If no poster path or it's already a full URL, continue
+        if (!media.poster_path || media.poster_path.startsWith('http')) continue;
+        
+        // Otherwise fetch a better poster image
+        try {
+          const title = isMovie(media) ? media.title : (media as any).name || 'Unknown';
+          const releaseYear = isMovie(media) 
+            ? (media.release_date ? new Date(media.release_date).getFullYear().toString() : "Unknown")
+            : (isTVShow(media) && media.first_air_date 
+                ? new Date(media.first_air_date).getFullYear().toString() 
+                : "Unknown");
+          
+          const posterUrl = await fetchPosterImage(
+            title,
+            releaseYear !== "Unknown" ? releaseYear : undefined,
+            media.media_type === 'tv' ? 'tv' : 'movie'
+          );
+          
+          if (posterUrl) {
+            newPosterUrls[mediaKey] = posterUrl;
+          }
+        } catch (error) {
+          console.error("Error fetching poster:", error);
+        }
+      }
+      
+      // Update state only if there are changes
+      if (Object.keys(newPosterUrls).length > Object.keys(posterUrls).length) {
+        setPosterUrls(newPosterUrls);
+      }
+    };
+    
+    if (results.length > 0) {
+      fetchPosters();
+    }
+  }, [results, posterUrls]);
 
   const playMediaDirectlyById = () => {
     if (isShowContent) {
@@ -149,8 +218,42 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelect = (media: Media) => {
+  const handleSelect = async (media: Media) => {
+    console.log("Selected media:", {
+      id: media.id,
+      title: isMovie(media) ? media.title : (media as TVShow).name,
+      type: media.media_type,
+      imdb_id: media.imdb_id,
+      tmdb_id: media.tmdb_id
+    });
+    
+    // Start loading state
+    setIsLoading(true);
+    
     if (isTVShow(media)) {
+      // For TV shows, try to get IMDb ID first if it's not available
+      if (!media.imdb_id && !String(media.id).startsWith('tt')) {
+        try {
+          console.log("Pre-fetching IMDb ID for TV show");
+          const tvShow = media as TVShow;
+          const releaseYear = tvShow.first_air_date 
+            ? new Date(tvShow.first_air_date).getFullYear().toString()
+            : undefined;
+          
+          // Try to get IMDb ID directly
+          const imdbId = await searchImdbAndExtractId(tvShow.name, releaseYear, 'tv');
+          if (imdbId) {
+            console.log(`Pre-fetched IMDb ID: ${imdbId} for ${tvShow.name}`);
+            // Add the IMDb ID to the media object
+            (tvShow as any).imdb_id = imdbId;
+          } else {
+            console.log(`Could not pre-fetch IMDb ID for ${tvShow.name}`);
+          }
+        } catch (error) {
+          console.error("Error pre-fetching IMDb ID:", error);
+        }
+      }
+      
       // For TV shows, show the season/episode selector
       setSelectedMedia(media as TVShow);
       setShowSeasonEpisodeSelector(true);
@@ -184,10 +287,23 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
       setQuery("");
       setShowDropdown(false);
     }
+    
+    // End loading state
+    setIsLoading(false);
   };
 
   const handleWatchTVShow = () => {
     if (selectedMedia) {
+      // Log the TV show details for debugging
+      console.log("Preparing TV show for player:", {
+        id: selectedMedia.id,
+        name: selectedMedia.name,
+        imdb_id: selectedMedia.imdb_id,
+        tmdb_id: selectedMedia.tmdb_id,
+        season: selectedSeason,
+        episode: selectedEpisode
+      });
+      
       // Add the selected season and episode to the media object
       const enhancedMedia: TVShow = {
         ...selectedMedia,
@@ -235,6 +351,12 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
         Episode {episode}
       </option>
     ));
+  };
+
+  // Helper to get the poster URL for a media item
+  const getPosterUrl = (media: Media): string => {
+    const mediaKey = `${media.id}-${media.media_type}`;
+    return posterUrls[mediaKey] || getFullPosterPath(media.poster_path);
   };
 
   return (
@@ -462,7 +584,7 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
               >
                 <div className="flex-shrink-0 w-12 h-18 relative">
                   <Image
-                    src={getFullPosterPath(media.poster_path)}
+                    src={getPosterUrl(media)}
                     alt={title}
                     width={48}
                     height={72}
@@ -481,7 +603,7 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
                     {overview}
                   </div>
                 </div>
-                <div className="ml-2 opacity-70 transition-opacity group-hover:opacity-100">
+                <div className="flex-shrink-0 ml-2">
                   <div className="text-accent text-xs p-1">
                     {isTVShow(media) ? "Select Episodes" : "Click to Watch"}
                   </div>

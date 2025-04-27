@@ -3,7 +3,19 @@ import { Movie, TVShow, Media } from "../types";
 
 // Try both environment variable names
 const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
-const genAI = new GoogleGenerativeAI(apiKey);
+
+// Only initialize the API if we have a key
+let genAI: GoogleGenerativeAI | null = null;
+try {
+  if (apiKey) {
+    genAI = new GoogleGenerativeAI(apiKey);
+    console.log("Gemini API initialized successfully");
+  } else {
+    console.error("No Gemini API key found in environment variables");
+  }
+} catch (error) {
+  console.error("Error initializing Gemini API:", error);
+}
 
 // Track movie titles we've already recommended to avoid repetition
 const recommendedMovieTitles = new Set<string>();
@@ -52,12 +64,13 @@ function validateImdbId(imdbId: string | null | undefined): string | undefined {
 
 // Search for movies using Gemini (autocomplete only)
 export async function searchMoviesWithGemini(query: string): Promise<Movie[]> {
-  if (!apiKey) {
-    console.error("Gemini API key not found");
-    return [];
+  if (!apiKey || !genAI) {
+    console.error("Gemini API key not found or initialization failed");
+    return createFallbackMovies(query);
   }
 
   try {
+    console.log(`Starting Gemini movie search for: "${query}"`);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
     const prompt = `I need information about movies matching this search query: "${query}".
@@ -74,56 +87,136 @@ Format STRICTLY as a JSON array with these properties for each movie:
 
     const result = await model.generateContent(prompt);
     const text = result.response.text();
+    console.log("Received response from Gemini for movie search, extracting JSON");
     
-    // Extract JSON from the response
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    // Extract JSON from the response - try multiple patterns
+    let jsonMatch = text.match(/\[[\s\S]*\]/);
+    
+    // If first pattern doesn't work, try alternatives
     if (!jsonMatch) {
-      throw new Error("Could not parse JSON from Gemini search response");
+      console.log("First JSON extraction pattern failed, trying alternatives");
+      // Use a pattern without the /s flag to maintain compatibility
+      jsonMatch = text.match(/\[([\s\S]*)\]/);
+      
+      if (!jsonMatch) {
+        const openBracket = text.indexOf('[');
+        const closeBracket = text.lastIndexOf(']');
+        
+        if (openBracket !== -1 && closeBracket !== -1 && closeBracket > openBracket) {
+          const jsonContent = text.substring(openBracket, closeBracket + 1);
+          jsonMatch = [jsonContent];
+          console.log("Extracted JSON using index method");
+        }
+      }
     }
     
-    // Parse the JSON array
+    if (!jsonMatch) {
+      console.error("Failed to extract JSON from Gemini response for movies");
+      console.log("Raw response:", text);
+      // Return empty fallback results
+      return createFallbackMovies(query);
+    }
+    
+    // Parse the JSON array with multiple fallback approaches
     let searchResults: any[] = [];
     try {
+      // First attempt - direct parsing
       searchResults = JSON.parse(jsonMatch[0]);
+      console.log(`Successfully parsed JSON with ${searchResults.length} movie results`);
     } catch (error) {
-      console.error("Error parsing search JSON:", error);
-      // Fallback - try to clean up the JSON before parsing
-      const cleanedJson = jsonMatch[0]
-        .replace(/(\w+):/g, '"$1":')  // Add quotes to property names
-        .replace(/:\s*"([^"]*)"/g, ':"$1"')  // Fix string values
-        .replace(/'/g, '"')  // Replace single quotes with double quotes
-        .replace(/,\s*}/g, '}')  // Remove trailing commas
-        .replace(/,\s*]/g, ']');  // Remove trailing commas
-      searchResults = JSON.parse(cleanedJson);
+      console.error("Initial JSON parsing error:", error);
+      
+      try {
+        // First fallback - clean up the JSON before parsing
+        const cleanedJson = jsonMatch[0]
+          .replace(/(\w+):/g, '"$1":')  // Add quotes to property names
+          .replace(/:\s*"([^"]*)"/g, ':"$1"')  // Fix string values
+          .replace(/'/g, '"')  // Replace single quotes with double quotes
+          .replace(/,\s*}/g, '}')  // Remove trailing commas
+          .replace(/,\s*]/g, ']');  // Remove trailing commas
+        
+        searchResults = JSON.parse(cleanedJson);
+        console.log("Successfully parsed JSON after cleaning");
+      } catch (secondError) {
+        console.error("Second JSON parsing error:", secondError);
+        
+        // Second fallback - extract individual objects and try to parse them
+        try {
+          const objectMatches = jsonMatch[0].match(/\{[^{}]*\}/g);
+          if (objectMatches) {
+            searchResults = objectMatches.map(objStr => {
+              try {
+                const cleanedObjStr = objStr
+                  .replace(/(\w+):/g, '"$1":')
+                  .replace(/'/g, '"')
+                  .replace(/,\s*}/g, '}');
+                return JSON.parse(cleanedObjStr);
+              } catch {
+                // If individual object parsing fails, return a minimal object
+                return { title: "Unknown Movie" };
+              }
+            });
+            console.log(`Parsed ${searchResults.length} objects individually`);
+          }
+        } catch (thirdError) {
+          console.error("Final JSON parsing error:", thirdError);
+          // If all parsing attempts fail, return fallback results
+          return createFallbackMovies(query);
+        }
+      }
     }
     
-    // Map to the Movie interface - now without generating IDs
+    // Validate and map to the Movie interface
+    if (!Array.isArray(searchResults) || searchResults.length === 0) {
+      console.log("Search results not in expected format, using fallback");
+      return createFallbackMovies(query);
+    }
+    
     return searchResults.map((movie: any, index: number) => {
-      // Generate a simple ID based on the index
-      const id = Date.now() + index;
+      // Generate a unique ID
+      const id = generateUniqueId();
       
-      return {
+      // Validate each field and provide defaults
+      const validatedMovie: Movie = {
         id: id,
-        title: movie.title,
+        title: movie.title || `Unknown Movie ${index + 1}`,
         release_date: movie.release_date || "Unknown",
-        overview: movie.overview || "",
-        vote_average: movie.vote_average || 0,
+        overview: movie.overview || `Information unavailable for this movie matching "${query}"`,
+        vote_average: typeof movie.vote_average === 'number' ? movie.vote_average : 0,
         poster_path: null,
-        media_type: 'movie'
+        media_type: 'movie' as const  // Use const assertion to fix the type
       };
+      
+      return validatedMovie;
     });
   } catch (error) {
     console.error("Error searching movies with Gemini:", error);
-    return [];
+    return createFallbackMovies(query);
   }
+}
+
+// Function to create fallback movie results when parsing fails
+function createFallbackMovies(query: string): Movie[] {
+  console.log("Creating fallback movie results for:", query);
+  return [
+    {
+      id: generateUniqueId(),
+      title: `Search result for "${query}"`,
+      release_date: "Unknown",
+      overview: "Our search couldn't find detailed information. Please try another search or check the title spelling.",
+      vote_average: 0,
+      poster_path: null,
+      media_type: 'movie' as const
+    }
+  ];
 }
 
 export async function getMovieRecommendations(
   input: { genre?: string; description?: string; media_type?: 'movie' | 'tv' | 'all' },
   count: number = 3
 ): Promise<Movie[]> {
-  if (!apiKey) {
-    console.error("Gemini API key not found");
+  if (!apiKey || !genAI) {
+    console.error("Gemini API key not found or initialization failed");
     return [];
   }
 
@@ -199,12 +292,13 @@ Format STRICTLY as a JSON array with these properties for each item:
 
 // Search for TV shows using Gemini
 export async function searchTVShowsWithGemini(query: string): Promise<TVShow[]> {
-  if (!apiKey) {
-    console.error("Gemini API key not found");
-    return [];
+  if (!apiKey || !genAI) {
+    console.error("Gemini API key not found or initialization failed");
+    return createFallbackTVShows(query);
   }
 
   try {
+    console.log(`Starting Gemini TV show search for: "${query}"`);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
     const prompt = `I need information about TV shows or web series matching this search query: "${query}".
@@ -230,51 +324,134 @@ Format STRICTLY as a JSON array with these properties for each show:
 
     const result = await model.generateContent(prompt);
     const text = result.response.text();
+    console.log("Received response from Gemini, extracting JSON");
     
-    // Extract JSON from the response
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    // Extract JSON from the response - try multiple patterns
+    let jsonMatch = text.match(/\[[\s\S]*\]/);
+    
+    // If first pattern doesn't work, try alternatives
     if (!jsonMatch) {
-      throw new Error("Could not parse JSON from Gemini search response");
+      console.log("First JSON extraction pattern failed, trying alternatives");
+      // Use a pattern without the /s flag to maintain compatibility
+      jsonMatch = text.match(/\[([\s\S]*)\]/);
+      
+      if (!jsonMatch) {
+        const openBracket = text.indexOf('[');
+        const closeBracket = text.lastIndexOf(']');
+        
+        if (openBracket !== -1 && closeBracket !== -1 && closeBracket > openBracket) {
+          const jsonContent = text.substring(openBracket, closeBracket + 1);
+          jsonMatch = [jsonContent];
+          console.log("Extracted JSON using index method");
+        }
+      }
     }
     
-    // Parse the JSON array
+    if (!jsonMatch) {
+      console.error("Failed to extract JSON from Gemini response for TV shows");
+      console.log("Raw response:", text);
+      // Return empty fallback results
+      return createFallbackTVShows(query);
+    }
+    
+    // Parse the JSON array with multiple fallback approaches
     let searchResults: any[] = [];
     try {
+      // First attempt - direct parsing
       searchResults = JSON.parse(jsonMatch[0]);
+      console.log(`Successfully parsed JSON with ${searchResults.length} TV show results`);
     } catch (error) {
-      console.error("Error parsing search JSON:", error);
-      // Fallback - try to clean up the JSON before parsing
-      const cleanedJson = jsonMatch[0]
-        .replace(/(\w+):/g, '"$1":')  // Add quotes to property names
-        .replace(/:\s*"([^"]*)"/g, ':"$1"')  // Fix string values
-        .replace(/'/g, '"')  // Replace single quotes with double quotes
-        .replace(/,\s*}/g, '}')  // Remove trailing commas
-        .replace(/,\s*]/g, ']');  // Remove trailing commas
-      searchResults = JSON.parse(cleanedJson);
+      console.error("Initial JSON parsing error:", error);
+      
+      try {
+        // First fallback - clean up the JSON before parsing
+        const cleanedJson = jsonMatch[0]
+          .replace(/(\w+):/g, '"$1":')  // Add quotes to property names
+          .replace(/:\s*"([^"]*)"/g, ':"$1"')  // Fix string values
+          .replace(/'/g, '"')  // Replace single quotes with double quotes
+          .replace(/,\s*}/g, '}')  // Remove trailing commas
+          .replace(/,\s*]/g, ']');  // Remove trailing commas
+        
+        searchResults = JSON.parse(cleanedJson);
+        console.log("Successfully parsed JSON after cleaning");
+      } catch (secondError) {
+        console.error("Second JSON parsing error:", secondError);
+        
+        // Second fallback - extract individual objects and try to parse them
+        try {
+          const objectMatches = jsonMatch[0].match(/\{[^{}]*\}/g);
+          if (objectMatches) {
+            searchResults = objectMatches.map(objStr => {
+              try {
+                const cleanedObjStr = objStr
+                  .replace(/(\w+):/g, '"$1":')
+                  .replace(/'/g, '"')
+                  .replace(/,\s*}/g, '}');
+                return JSON.parse(cleanedObjStr);
+              } catch {
+                // If individual object parsing fails, return a minimal object
+                return { name: "Unknown Show" };
+              }
+            });
+            console.log(`Parsed ${searchResults.length} objects individually`);
+          }
+        } catch (thirdError) {
+          console.error("Final JSON parsing error:", thirdError);
+          // If all parsing attempts fail, return fallback results
+          return createFallbackTVShows(query);
+        }
+      }
     }
     
-    // Map to the TVShow interface
+    // Validate and map to the TVShow interface
+    if (!Array.isArray(searchResults) || searchResults.length === 0) {
+      console.log("Search results not in expected format, using fallback");
+      return createFallbackTVShows(query);
+    }
+    
     return searchResults.map((show: any, index: number) => {
-      // Generate a simple ID based on the index
-      const id = Date.now() + index + 5000; // Offset to avoid collision with movie IDs
+      // Generate a unique ID
+      const id = generateUniqueId();
       
-      return {
+      // Validate each field and provide defaults
+      const validatedShow: TVShow = {
         id: id,
-        name: show.name,
+        name: show.name || `Unknown Show ${index + 1}`,
         first_air_date: show.first_air_date || "Unknown",
-        overview: show.overview || "",
-        vote_average: show.vote_average || 0,
+        overview: show.overview || `Information unavailable for this TV show matching "${query}"`,
+        vote_average: typeof show.vote_average === 'number' ? show.vote_average : 0,
         poster_path: null,
-        media_type: 'tv',
-        number_of_seasons: show.number_of_seasons || 1,
-        number_of_episodes: show.number_of_episodes,
-        episodes_per_season: show.episodes_per_season || {"1": 10}
+        media_type: 'tv' as const,  // Use const assertion to fix the type
+        number_of_seasons: typeof show.number_of_seasons === 'number' ? show.number_of_seasons : 1,
+        episodes_per_season: show.episodes_per_season && typeof show.episodes_per_season === 'object' 
+          ? show.episodes_per_season 
+          : {"1": 10}
       };
+      
+      return validatedShow;
     });
   } catch (error) {
     console.error("Error searching TV shows with Gemini:", error);
-    return [];
+    return createFallbackTVShows(query);
   }
+}
+
+// Function to create fallback TV show results when parsing fails
+function createFallbackTVShows(query: string): TVShow[] {
+  console.log("Creating fallback TV show results for:", query);
+  return [
+    {
+      id: generateUniqueId(),
+      name: `Search result for "${query}"`,
+      first_air_date: "Unknown",
+      overview: "Our search couldn't find detailed information. Please try another search or check the title spelling.",
+      vote_average: 0,
+      poster_path: null,
+      media_type: 'tv' as const,  // Use const assertion to fix the type
+      number_of_seasons: 1,
+      episodes_per_season: {"1": 10}
+    }
+  ];
 }
 
 // Get TV show recommendations
@@ -282,8 +459,8 @@ export async function getTVShowRecommendations(
   input: { genre?: string; description?: string; media_type?: 'movie' | 'tv' | 'all' },
   count: number = 3
 ): Promise<TVShow[]> {
-  if (!apiKey) {
-    console.error("Gemini API key not found");
+  if (!apiKey || !genAI) {
+    console.error("Gemini API key not found or initialization failed");
     return [];
   }
 

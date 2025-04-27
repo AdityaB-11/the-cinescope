@@ -1,5 +1,43 @@
 import { NextResponse } from "next/server";
 import { getMovieRecommendations, getTVShowRecommendations } from "@/app/lib/gemini";
+import { fetchPosterImage } from "@/app/lib/api";
+import { Media, isMovie, isTVShow } from "@/app/types";
+
+// Helper function to extract year from date string
+function extractYear(dateString: string): string | undefined {
+  if (!dateString || dateString === "Unknown") return undefined;
+  
+  // Extract year from YYYY or YYYY-MM-DD format
+  const match = dateString.match(/^(\d{4})/);
+  return match ? match[1] : undefined;
+}
+
+// Helper function to fetch posters for recommendations
+async function addPostersToRecommendations(recommendations: Media[]): Promise<Media[]> {
+  // Create a copy of the recommendations to avoid mutating the original
+  const recommendationsWithPosters = [...recommendations];
+  
+  // Fetch posters for each recommendation
+  for (const media of recommendationsWithPosters) {
+    const title = isMovie(media) ? media.title : (media as any).name;
+    const releaseDate = isMovie(media) ? media.release_date : (media as any).first_air_date;
+    const year = extractYear(releaseDate);
+    const mediaType = isMovie(media) ? 'movie' : 'tv';
+    
+    // Only fetch a poster if we don't already have one
+    if (!media.poster_path || media.poster_path === null) {
+      const posterUrl = await fetchPosterImage(title, year, mediaType);
+      if (posterUrl) {
+        media.poster_path = posterUrl;
+      }
+    }
+    
+    // Add a small delay to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+  
+  return recommendationsWithPosters;
+}
 
 export async function POST(request: Request) {
   try {
@@ -13,9 +51,11 @@ export async function POST(request: Request) {
       );
     }
 
+    let recommendations: Media[] = [];
+    
     if (media_type === 'tv') {
       // TV show recommendations
-      const recommendations = await getTVShowRecommendations(
+      recommendations = await getTVShowRecommendations(
         { 
           genre, 
           description,
@@ -23,11 +63,9 @@ export async function POST(request: Request) {
         }, 
         count
       );
-      
-      return NextResponse.json({ media: recommendations });
     } else {
       // Movie recommendations (default)
-      const recommendations = await getMovieRecommendations(
+      recommendations = await getMovieRecommendations(
         { 
           genre, 
           description,
@@ -35,9 +73,12 @@ export async function POST(request: Request) {
         }, 
         count
       );
-      
-      return NextResponse.json({ media: recommendations });
     }
+    
+    // Add posters to the recommendations
+    const recommendationsWithPosters = await addPostersToRecommendations(recommendations);
+    
+    return NextResponse.json({ media: recommendationsWithPosters });
   } catch (error) {
     console.error("Error in recommend API:", error);
     return NextResponse.json(
