@@ -2,7 +2,7 @@ import { Movie, TVShow, Media, SearchResult } from "../types";
 import { searchMoviesWithGemini, searchTVShowsWithGemini } from "./gemini";
 
 // Fallback poster path for missing images
-const PLACEHOLDER_POSTER = "/placeholder-poster.svg";
+const PLACEHOLDER_POSTER = "/hero-cinema.jpg";
 
 export async function searchMovies(query: string): Promise<Movie[]> {
   if (!query) return [];

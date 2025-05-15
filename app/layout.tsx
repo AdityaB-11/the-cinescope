@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LRLK - AI-Powered Movie Streaming",
+  title: " THE CINESCOPE",
   description: "Discover and watch movies with AI-powered recommendations",
   icons: {
     icon: '/favicon.png',
