@@ -35,12 +35,12 @@ The CineScope is a modern movie discovery platform that helps users find and enj
 <div align="center">
 <table>
   <tr>
-    <td><img src="https://via.placeholder.com/400x200/12121F/7b68ee?text=Movie+Search" alt="Movie Search" /></td>
-    <td><img src="https://via.placeholder.com/400x200/12121F/00b4ff?text=Recommendations" alt="Recommendations" /></td>
+    <td><img src="public/movsearch.png" alt="Movie Search" /></td>
+    <td><img src="public/recommender.png" alt="Recommendations" /></td>
   </tr>
   <tr>
-    <td><img src="https://via.placeholder.com/400x200/12121F/7b68ee?text=Movie+Player" alt="Movie Player" /></td>
-    <td><img src="https://via.placeholder.com/400x200/12121F/00b4ff?text=Contact" alt="Contact" /></td>
+    <td><img src="public/movieplayer.png" alt="Movie Player" /></td>
+ 
   </tr>
 </table>
 </div>
