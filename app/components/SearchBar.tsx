@@ -197,6 +197,14 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
         media_type: 'movie'
       };
       
+      // Set the IMDb ID if the entered ID looks like an IMDb ID (starts with 'tt')
+      if (mediaId.startsWith('tt')) {
+        directMedia.imdb_id = mediaId;
+      } else {
+        // If it's a numeric ID, assume it's a TMDB ID
+        directMedia.tmdb_id = Number(mediaId);
+      }
+      
       // Pass the media object to the player
       onMovieSelect(directMedia);
       setMediaId("");
@@ -432,13 +440,18 @@ export default function SearchBar({ onMovieSelect }: SearchBarProps) {
 
           {!isShowContent ? (
             // Movie ID UI
-            <input
-              type="text"
-              placeholder="Enter movie ID"
-              value={mediaId}
-              onChange={(e) => setMediaId(e.target.value.trim())}
-              className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
-            />
+            <div className="space-y-2">
+              <input
+                type="text"
+                placeholder="Enter movie ID (IMDb: tt1234567 or TMDB: 1234)"
+                value={mediaId}
+                onChange={(e) => setMediaId(e.target.value.trim())}
+                className="w-full px-4 py-3 bg-gray-900 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+              />
+              <p className="text-xs text-gray-400">
+                Enter either an IMDb ID (starts with 'tt') or a TMDB ID (numeric)
+              </p>
+            </div>
           ) : (
             // TV Show ID UI
             <div className="space-y-2">

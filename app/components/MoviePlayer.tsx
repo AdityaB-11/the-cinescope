@@ -22,26 +22,63 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
   
   // Effect to determine the proper ID type and embed URL
   useEffect(() => {
+    console.log("Setting embed URL - Movie IDs:", {
+      imdb_id: movie.imdb_id,
+      tmdb_id: movie.tmdb_id,
+      id: movie.id
+    });
+    
     // Determine the best ID to use
     if (movie.imdb_id) {
+      console.log("Using IMDb ID for embed:", movie.imdb_id);
       setCurrentIdType('imdb');
       setEmbedUrl(getVidFastEmbedUrl(movie.imdb_id));
     } else if (movie.tmdb_id) {
+      console.log("Using TMDB ID for embed:", movie.tmdb_id);
       setCurrentIdType('tmdb');
       setEmbedUrl(getVidFastEmbedUrl(movie.tmdb_id));
+    } else if (movie.id && movie.title === `Content ID: ${movie.id}`) {
+      // This is a direct ID entry from SearchBar
+      console.log("Using direct ID for embed:", movie.id);
+      setCurrentIdType(movie.id.toString().startsWith('tt') ? 'imdb' : 'tmdb');
+      setEmbedUrl(getVidFastEmbedUrl(movie.id));
     } else {
+      console.log("No suitable ID found for embed");
       setEmbedUrl('');
     }
-  }, [movie.imdb_id, movie.tmdb_id]);
+  }, [movie.imdb_id, movie.tmdb_id, movie.id]);
   
   // Try to get IMDb ID if not available - this is now a critical step
   useEffect(() => {
     const fetchImdbId = async () => {
-      // Only try to fetch if we don't already have an IMDb ID
-      if (!movie.imdb_id && movie.title) {
+      console.log("MoviePlayer useEffect triggered:", {
+        hasImdbId: !!movie.imdb_id,
+        hasTmdbId: !!movie.tmdb_id,
+        title: movie.title,
+        movieId: movie.id
+      });
+      
+      // If we already have an IMDb ID, we're good to go
+      if (movie.imdb_id) {
+        console.log("Already have IMDb ID:", movie.imdb_id);
+        setIsLoading(false);
+        return;
+      }
+      
+      // If we have a TMDB ID but no IMDb ID, we can try with TMDB
+      if (movie.tmdb_id && !movie.title) {
+        console.log("Have TMDB ID but no title, will use TMDB:", movie.tmdb_id);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Only try to fetch if we don't already have an IMDb ID but have a title
+      if (!movie.imdb_id && movie.title && movie.title !== `Content ID: ${movie.id}`) {
         try {
           setIsScrapingImdb(true);
           setIsLoading(true);
+          
+          console.log("Attempting to fetch IMDb ID for:", movie.title);
           
           // Extract release year from release_date if available
           const releaseYear = movie.release_date ? movie.release_date.substring(0, 4) : undefined;
@@ -54,17 +91,31 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
             setImdbIdFound(true);
             console.log(`Found IMDb ID: ${imdbId} for ${movie.title}`);
           } else {
-            // If no IMDb ID found, show error immediately
-            setHasError(true);
-            console.error(`No IMDb ID found for ${movie.title}`);
+            console.log(`No IMDb ID found for ${movie.title}, checking for alternatives`);
+            // If no IMDb ID found but we have TMDB ID, use that
+            if (movie.tmdb_id) {
+              console.log("Will use TMDB ID instead:", movie.tmdb_id);
+            } else {
+              // If no IMDb ID found and no TMDB ID, show error
+              setHasError(true);
+              console.error(`No IMDb ID found and no TMDB ID available for ${movie.title}`);
+            }
           }
         } catch (error) {
           console.error("Error fetching IMDb ID:", error);
-          setHasError(true);
+          // If we have TMDB ID as fallback, use it
+          if (movie.tmdb_id) {
+            console.log("Error fetching IMDb ID, will use TMDB ID instead:", movie.tmdb_id);
+          } else {
+            setHasError(true);
+          }
         } finally {
           setIsScrapingImdb(false);
           setIsLoading(false);
         }
+      } else {
+        console.log("Skipping IMDb ID fetch - using provided ID");
+        setIsLoading(false);
       }
     };
 
@@ -304,6 +355,26 @@ export default function MoviePlayer({ movie, onClose, initialIdType = 'imdb' }: 
             onLoad={handleIframeLoad}
             onError={handleIframeError}
           ></iframe>
+          )}
+          
+          {!isLoading && !hasError && !embedUrl && (
+            <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-black text-center p-6">
+              <div>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h3 className="text-xl font-bold mb-2">No Video Source</h3>
+                <p className="text-gray-300 mb-4">
+                  No valid movie ID found to generate embed URL.
+                </p>
+                <button 
+                  onClick={handleRetry}
+                  className="neon-button py-2 px-6 rounded-full text-sm font-medium"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
